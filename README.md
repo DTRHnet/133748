@@ -90,6 +90,8 @@ node dist/index.js grab \
 
 ---
 
+admin\[AT\]dtrh\[DOT\]net
+
 ## License
 
 Released under the MIT License – see LICENSE for details.
