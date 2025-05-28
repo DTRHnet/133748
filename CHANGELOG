@@ -1,0 +1,40 @@
+# CHANGELOG
+
+
+## 0.2.0-Alpha-0.5 (2025-05-28)
+**Added**
+  - Terminal User Interface (TUI) Filtering: Implemented a new feature to automatically omit search results from the TUI display if their URL does not contain 'guitar-pro'. This ensures the TUI focuses only on relevant Guitar Pro tabs.
+
+**Improved**
+  - CLI Argument Parsing: Enhanced argument handling to correctly pass --tui and other flags to the Node.js application, resolving "unknown cli config" warnings.
+  - TUI Initialization: Implemented await app.waitUntilExit() to ensure the TUI remains active until explicitly exited by the user, preventing immediate process termination.
+
+**Fixed**
+  - Ink Rendering Error: Resolved "Text string ' ' must be rendered inside <Text> component" error by correctly wrapping all literal strings and whitespace within <Text> components in the TUI.
+  - Search Script Execution: Adjusted package.json search script to directly call node dist/index.js, simplifying argument passing and avoiding issues with nested npm run commands.
+
+**Refactored**
+  - Search Result Grouping: Optimized the internal logic for grouping and structuring search results into a hierarchical format suitable for TUI display.
+
+0.2-Alpha-0.4
+**Added**
+  - Terminal User Interface (TUI): Introduced an interactive TUI for navigating search results.
+      -  Key bindings for intuitive navigation (Up/Down/Left/Right Arrows, Enter).
+      -  Ability to expand and collapse tree nodes for hierarchical data.
+      -  Dynamic sorting of results within the TUI (by Type, Artist, Song, and Tab Type).
+      -  Functionality to toggle expansion/collapse for all nodes at the current depth ([a] key).
+      -  Direct opening of Ultimate Guitar tab URLs in the default browser from the TUI.
+  - Grab Feature: Added a grab command to download Guitar Pro tabs directly.
+      - Can be used via node dist/index.js grab <URL>.
+      - Integrated into the TUI for marking multiple links and downloading them one by one.
+
+**Improved**
+  -  CLI Argument Parsing: Enhanced argument handling to correctly pass --tui and other flags to the Node.js application, resolving "unknown cli config" warnings.
+  -  TUI Initialization: Implemented await app.waitUntilExit() to ensure the TUI remains active until explicitly exited by the user, preventing immediate process termination.
+
+**Fixed**
+  -  Ink Rendering Error: Resolved "Text string ' ' must be rendered inside <Text> component" error by correctly wrapping all literal strings and whitespace within <Text> components in the TUI.
+  -  Search Script Execution: Adjusted package.json search script to directly call node dist/index.js, simplifying argument passing and avoiding issues with nested npm run commands.
+
+**Refactored**
+  -  Search Result Grouping: Optimized the internal logic for grouping and structuring search results into a hierarchical format suitable for TUI display.

@@ -1,0 +1,43 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# Production build
+dist
+build
+
+# System files
+.DS_Store
+.env
+.env.*
+*.swp
+*.swo
+*.fuse_hidden*
+*.sublime-project
+*.sublime-workspace
+
+# Optional: package-lock.json or yarn.lock (if you don't want to track dependency versions)
+# package-lock.json
+# yarn.lock
+node_modules/
+npm-debug.log*
+.DS_Store
+dist/
+build/
+*.tgz
+.env
+.cache/
+tmp/
+coverage/
+node_modules/
+
+# Other
+*.bak

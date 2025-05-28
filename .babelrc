@@ -1,0 +1,11 @@
+{
+  "presets": [
+    [
+      "@babel/preset-env",
+      {
+        "modules": false // This tells Babel to keep import/export statements
+      }
+    ],
+    "@babel/preset-react"
+  ]
+}
