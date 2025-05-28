@@ -43,7 +43,7 @@ Reads `config/default.yml` for user-tunable settings (if present).
 
 ```bash
 # 1. Clone the repo
-git clone <repository_url_here> 133748
+git clone https://github.com/DTRHnet/133748
 cd 133748
 
 # 2. Install dependencies
