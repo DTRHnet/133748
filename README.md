@@ -1,6 +1,6 @@
 # 133748
 
-*A CLI/Webapp which leverages [my replay attack PoC]() in a user friendly way. It allows for authentication bypass via broken access control on UG for easy and ad free guitar pro files, including search function and batch downloading.. 133748 =  **“leetab”** or **“elitetab”**).*
+*A CLI/Webapp which leverages [my replay attack PoC](https://github.com/DTRHnet/Bug-Bounty-Disclosures/blob/main/%5Bdtrh.net%5D-vuln.01-ultimate-guitar.com.pdf) in a user friendly way. It allows for authentication bypass via broken access control on UG for easy and ad free guitar pro files, including search function and batch downloading.. 133748 =  **“leetab”** or **“elitetab”**).*
 
 ---
 
