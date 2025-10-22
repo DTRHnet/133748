@@ -8,7 +8,7 @@ const __dirname = path.dirname(__filename);
 let APP_NAME = '133748';
 let APP_VERSION = '0.2.0-alpha-config-engine'; // Make sure this is updated to your latest version
 try {
-  const packageJsonPath = path.resolve(__dirname, '../../../package.json');
+  const packageJsonPath = path.resolve(__dirname, '../../package.json');
   const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
   APP_NAME = packageJson.name;
   APP_VERSION = packageJson.version;
@@ -24,8 +24,8 @@ export const APP_INFO = {
 };
 
 export const PATHS = {
-  APP_ROOT: path.resolve(__dirname, '../../../'),
-  CONFIG_DIR: path.resolve(__dirname, '../../../config'),
+  APP_ROOT: path.resolve(__dirname, '../../'),
+  CONFIG_DIR: path.resolve(__dirname, '../../config'),
   DEFAULT_CONFIG_FILE_NAME: 'default.conf',
   DEFAULT_TABS_DIR: path.join(process.env.HOME || process.env.USERPROFILE, 'Tabs'),
   DEFAULT_LOG_DIR: path.join(process.env.HOME || process.env.USERPROFILE, '.cache', APP_NAME),

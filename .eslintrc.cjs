@@ -9,9 +9,21 @@ module.exports = {
   ],
   parserOptions: {
     ecmaVersion: 12,
-    sourceType: 'module'
+    sourceType: 'module',
+    ecmaFeatures: {
+      jsx: true
+    }
   },
   rules: {
     // Add your custom rules here
-  }
+    'no-unused-vars': ['error', {
+      varsIgnorePattern: '^(React|Box|Text)$',
+      argsIgnorePattern: '^_'
+    }]
+  },
+  ignorePatterns: [
+    'dist/',
+    'node_modules/',
+    '*.min.js'
+  ]
 };
