@@ -1,4 +1,4 @@
-import { debug, error } from '../../../pkg/logger.js';
+import { debug } from '../../../pkg/logger.js';
 import { UG_URLS } from '../../../pkg/constants.js';
 
 /**
@@ -9,7 +9,8 @@ import { UG_URLS } from '../../../pkg/constants.js';
  * @returns {Array<Object>} An array of objects, each with { url: string, title: string }.
  */
 export async function parseSearchPage(html) {
-  debug('Parsing search results HTML for links...');
+  debug('\n🔍 Parsing search results HTML for links...');
+  debug(`   HTML length: ${(html.length / 1024).toFixed(1)} KB`);
 
   const cheerio = await import('cheerio');
   const $ = cheerio.load(html);
@@ -19,14 +20,16 @@ export async function parseSearchPage(html) {
 
   // Select all links that are likely to be tab/chords/bass/drum/ukulele links
   // This is a broad initial selection.
-  const potentialTabLinks = $('a[href*="/tab/"], a[href*="/chords/"], a[href*="/bass/"], a[href*="/drum/"], a[href*="/ukulele/"], a[href*="/official/"]');
+  const potentialTabLinks = $(
+    'a[href*="/tab/"], a[href*="/chords/"], a[href*="/bass/"], a[href*="/drum/"], a[href*="/ukulele/"], a[href*="/official/"]'
+  );
 
   if (potentialTabLinks.length === 0) {
-    debug('No potential tab links found with common UG tab/chords selectors.');
+    debug('   ⚠️  No potential tab links found with common UG selectors.');
     return [];
   }
 
-  debug(`Found ${potentialTabLinks.length} raw potential links.`);
+  debug(`   🔗 Found ${potentialTabLinks.length} potential links to analyze`);
 
   potentialTabLinks.each((i, el) => {
     let url = $(el).attr('href');
@@ -43,8 +46,12 @@ export async function parseSearchPage(html) {
     if (url.startsWith('/')) {
       // It's a relative URL, prepend the base domain from UG_URLS
       fullUrl = UG_URLS.BASE + url;
-    } else if (url.startsWith('http://www.ultimate-guitar.com/') || url.startsWith('https://www.ultimate-guitar.com/') ||
-               url.startsWith('http://tabs.ultimate-guitar.com/') || url.startsWith('https://tabs.ultimate-guitar.com/')) {
+    } else if (
+      url.startsWith('http://www.ultimate-guitar.com/') ||
+      url.startsWith('https://www.ultimate-guitar.com/') ||
+      url.startsWith('http://tabs.ultimate-guitar.com/') ||
+      url.startsWith('https://tabs.ultimate-guitar.com/')
+    ) {
       // It's an absolute URL from an Ultimate Guitar domain, use as is
       fullUrl = url;
     } else {
@@ -63,12 +70,15 @@ export async function parseSearchPage(html) {
     // Example: /tab/metallica/funeral-march-of-a-marionette-tabs-3670061
     // Example: /tab/metallica/if-darkness-had-a-son-official-4669646
     // Example: /tab/metallica/2-x-4-guitar-pro-225297
-    const tabUrlRegex = /\/(tab|chords|bass|drum|ukulele|power|official)\/([a-z0-9-]+)\/([a-z0-9-]+)(?:-([a-z0-9-]+))?-(\d+)/i;
-    
+    const tabUrlRegex =
+      /\/(tab|chords|bass|drum|ukulele|power|official)\/([a-z0-9-]+)\/([a-z0-9-]+)(?:-([a-z0-9-]+))?-(\d+)/i;
+
     const match = fullUrl.match(tabUrlRegex);
 
     if (!match) {
-      debug(`Skipping URL "${fullUrl}" as it does not match the specific UG tab/chords/version URL pattern.`);
+      debug(
+        `Skipping URL "${fullUrl}" as it does not match the specific UG tab/chords/version URL pattern.`
+      );
       return;
     }
 
@@ -85,6 +95,6 @@ export async function parseSearchPage(html) {
     foundLinks.push({ url: fullUrl, title: title });
   });
 
-  debug(`Finished parsing. Found ${foundLinks.length} unique and valid tab links.`);
+  debug(`   ✓ Parsing complete: ${foundLinks.length} unique and valid tab links extracted`);
   return foundLinks;
 }

@@ -16,12 +16,13 @@ class ConfigEngine {
    */
   resolveConfigPath() {
     // Priority: CLI arg (--config), Environment variable (133748_CONF), Default path
-    const cliConfigPath = process.argv.find(arg => arg.startsWith('--config='));
+    const cliConfigPath = process.argv.find((arg) => arg.startsWith('--config='));
     if (cliConfigPath) {
       return path.resolve(process.cwd(), cliConfigPath.split('=')[1]);
     }
 
-    if (process.env.LEETAB_CONF) { // Using LEETAB_CONF for consistency with project name play
+    if (process.env.LEETAB_CONF) {
+      // Using LEETAB_CONF for consistency with project name play
       return path.resolve(process.env.LEETAB_CONF);
     }
 
@@ -32,7 +33,7 @@ class ConfigEngine {
    * Generates the default configuration content as a string.
    * @returns {string} The default config content.
    */
-// ... (existing imports and class structure)
+  // ... (existing imports and class structure)
 
   getDefaultConfigContent() {
     return `
@@ -47,7 +48,8 @@ tabs_dir = ${PATHS.DEFAULT_TABS_DIR}
 log_dir = ${PATHS.DEFAULT_LOG_DIR}
 
 # Log level for console and file output (debug, info, warn, error, silent).
-log_level = info
+# Set to 'debug' for verbose output explaining the process
+log_level = debug
 
 # --- Scraper Settings ---
 # Maximum number of concurrent downloads.
@@ -78,8 +80,6 @@ auto_launch_tui = false
 tmp_dir = ${PATHS.DEFAULT_TMP_DIR}
 `.trim();
   }
-
-
 
   /**
    * Parses a single line of config (key=value # comment).
@@ -115,32 +115,38 @@ tmp_dir = ${PATHS.DEFAULT_TMP_DIR}
   loadConfig() {
     const configDir = path.dirname(this.configPath);
     if (!fs.existsSync(configDir)) {
-      debug(`Creating config directory: ${configDir}`);
+      debug(`📁 Creating config directory: ${configDir}`);
       fs.mkdirSync(configDir, { recursive: true });
+      debug(`✓ Config directory created`);
     }
 
     if (!fs.existsSync(this.configPath)) {
-      info(`Config file not found at ${this.configPath}. Creating with default settings.`);
+      info(`ℹ️  Config file not found at ${this.configPath}`);
+      info(`📝 Creating default configuration file...`);
       fs.writeFileSync(this.configPath, this.defaultConfigContent);
+      info(`✓ Default config file created`);
     }
 
     try {
+      debug(`📖 Reading config from: ${this.configPath}`);
       const fileContent = fs.readFileSync(this.configPath, 'utf8');
       const lines = fileContent.split('\n');
       const newConfig = {};
+      let parsedKeys = 0;
 
       for (const line of lines) {
         const parsed = this.parseLine(line);
         if (parsed) {
           const [key, value] = parsed;
           newConfig[key] = value;
+          parsedKeys++;
         }
       }
       this.config = newConfig;
-      debug(`Configuration loaded from: ${this.configPath}`);
+      debug(`✓ Configuration loaded: ${parsedKeys} settings found`);
     } catch (e) {
-      error(`Failed to load configuration from ${this.configPath}: ${e.message}`);
-      warn('Proceeding with default or in-memory settings.');
+      error(`❌ Failed to load configuration from ${this.configPath}: ${e.message}`);
+      warn('⚠️  Proceeding with default or in-memory settings.');
       this.config = {}; // Fallback to empty or existing in-memory if loading fails
     }
   }
@@ -175,7 +181,7 @@ tmp_dir = ${PATHS.DEFAULT_TMP_DIR}
     try {
       const lines = fs.readFileSync(this.configPath, 'utf8').split('\n');
       let found = false;
-      const updatedLines = lines.map(line => {
+      const updatedLines = lines.map((line) => {
         const parsed = this.parseLine(line);
         if (parsed && parsed[0] === key) {
           found = true;
@@ -208,7 +214,7 @@ tmp_dir = ${PATHS.DEFAULT_TMP_DIR}
 
     try {
       const lines = fs.readFileSync(this.configPath, 'utf8').split('\n');
-      const updatedLines = lines.filter(line => {
+      const updatedLines = lines.filter((line) => {
         const parsed = this.parseLine(line);
         return !(parsed && parsed[0] === key);
       });
