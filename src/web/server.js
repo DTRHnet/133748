@@ -1,252 +1,336 @@
 import express from 'express';
-import { createServer } from 'http';
-import { Server } from 'socket.io';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import fs from 'fs/promises';
-import { info, error } from '../pkg/logger.js';
-import { deriveFilename, DEFAULT_TABS_DIR } from '../pkg/fileUtils.js';
-import { configEngine } from '../pkg/configEngine.js';
-import { closeBrowser } from '../internal/scraper/index.js';
-import puppeteer from 'puppeteer';
-import { execSync } from 'child_process';
-import { shQ } from '../pkg/fileUtils.js';
+import { spawn } from 'child_process';
+import os from 'os';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Fix package.json path resolution
-const projectRoot = path.resolve(__dirname, '../../..');
-process.chdir(projectRoot);
-
 const app = express();
-const server = createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: '*',
-    methods: ['GET', 'POST'],
-  },
-});
-
 const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.urlencoded({ extended: true }));
 
-// Fallback for static files if not found in dist
-app.use(express.static(path.join(__dirname, '../../src/web/public')));
+// Serve static files from the dist directory
+app.use(express.static(path.join(__dirname, '../../dist')));
 
-// Ensure tabs directory exists
-async function ensureTabsDir() {
+// API endpoint for echoHEIST
+app.post('/api/echoheist', async (req, res) => {
   try {
-    await fs.mkdir(DEFAULT_TABS_DIR, { recursive: true });
-    info(`Tabs directory ready: ${DEFAULT_TABS_DIR}`);
-  } catch (err) {
-    error(`Failed to create tabs directory: ${err.message}`);
-  }
-}
-
-// Enhanced grab function with real-time logging
-async function grabTabWithLogging(url, socket) {
-  let browser;
-  let downloadInitiated = false;
-
-  try {
-    socket.emit('log', { type: 'info', message: `Starting download process for: ${url}` });
-
-    // Generate output filename
-    const filename = deriveFilename(url);
-    const outputPath = path.join(DEFAULT_TABS_DIR, filename);
-
-    socket.emit('log', { type: 'info', message: `Generated filename: ${filename}` });
-    socket.emit('log', { type: 'info', message: `Output path: ${outputPath}` });
-
-    // Launch browser
-    socket.emit('log', { type: 'info', message: 'Launching browser...' });
-    browser = await puppeteer.launch({
-      headless: 'new',
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
-    });
-
-    socket.emit('log', { type: 'info', message: 'Browser launched successfully' });
-
-    const page = await browser.newPage();
-    socket.emit('log', { type: 'info', message: 'New page created' });
-
-    // Enable network request interception
-    await page.setRequestInterception(true);
-    socket.emit('log', { type: 'info', message: 'Network interception enabled' });
-
-    page.on('request', (req) => {
-      const requestUrl = req.url();
-
-      // Match the desired download request
-      if (!requestUrl.includes('/download/public/')) {
-        req.continue();
-        return;
-      }
-
-      socket.emit('log', {
-        type: 'success',
-        message: `🎯 Captured download request: ${requestUrl}`,
-      });
-
-      // Rebuild headers for curl command
-      const headers = Object.entries(req.headers())
-        .map(([key, value]) => `-H '${key}: ${shQ(value)}'`)
-        .join(' ');
-
-      // Construct the curl command
-      const cmd = `curl -sSL --fail ${headers} --output '${outputPath}' '${requestUrl}'`;
-
-      socket.emit('log', { type: 'info', message: 'Executing curl command...' });
-
-      try {
-        execSync(cmd, { stdio: 'pipe' });
-        socket.emit('log', { type: 'success', message: `✅ Successfully downloaded: ${filename}` });
-        socket.emit('downloadComplete', {
-          filename,
-          path: outputPath,
-          url: requestUrl,
-        });
-        downloadInitiated = true;
-      } catch (e) {
-        socket.emit('log', { type: 'error', message: `❌ Download failed: ${e.message}` });
-      }
-      req.abort();
-    });
-
-    // Navigate to the provided URL
-    socket.emit('log', { type: 'info', message: `Navigating to: ${url}` });
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
-
-    socket.emit('log', { type: 'info', message: 'Page loaded, waiting for network activity...' });
-
-    // Add a delay to ensure all dynamic requests are captured
-    await new Promise((resolve) => setTimeout(resolve, 3000));
-
-    if (!downloadInitiated) {
-      socket.emit('log', {
-        type: 'warning',
-        message:
-          '⚠️ No direct download link intercepted. This might not be a Guitar Pro tab or requires different handling.',
-      });
-    }
-  } catch (e) {
-    socket.emit('log', { type: 'error', message: `❌ Error during grab operation: ${e.message}` });
-    error(`Grab operation failed for ${url}: ${e.message}`);
-  } finally {
-    if (browser) {
-      await browser.close();
-      socket.emit('log', { type: 'info', message: 'Browser closed' });
-    }
-  }
-
-  return downloadInitiated;
-}
-
-// Routes
-app.get('/', (req, res) => {
-  const indexPath = path.join(__dirname, 'public', 'index.html');
-  const fallbackPath = path.join(__dirname, '../../src/web/public/index.html');
-
-  // Try the built file first, then fallback to source
-  if (require('fs').existsSync(indexPath)) {
-    res.sendFile(indexPath);
-  } else if (require('fs').existsSync(fallbackPath)) {
-    res.sendFile(fallbackPath);
-  } else {
-    res.status(404).send('Web interface not found. Please run "npm run build" first.');
-  }
-});
-
-app.get('/download/:filename', async (req, res) => {
-  const filename = req.params.filename;
-  const filePath = path.join(DEFAULT_TABS_DIR, filename);
-
-  try {
-    await fs.access(filePath);
-    res.download(filePath, filename, (err) => {
-      if (err) {
-        error(`Download error: ${err.message}`);
-        res.status(500).json({ error: 'Download failed' });
-      }
-    });
-  } catch (err) {
-    res.status(404).json({ error: 'File not found' });
-  }
-});
-
-// Socket.IO connection handling
-io.on('connection', (socket) => {
-  info(`Client connected: ${socket.id}`);
-
-  socket.on('download', async (data) => {
-    const { url } = data;
+    const { url } = req.body;
 
     if (!url) {
-      socket.emit('log', { type: 'error', message: 'No URL provided' });
-      return;
+      return res.status(400).json({ error: 'URL is required' });
     }
 
-    if (!url.includes('ultimate-guitar.com')) {
-      socket.emit('log', { type: 'error', message: 'URL must be from ultimate-guitar.com' });
-      return;
+    // Validate URL format
+    try {
+      new URL(url);
+    } catch {
+      return res.status(400).json({ error: 'Invalid URL format' });
     }
 
-    socket.emit('log', { type: 'info', message: `Received download request for: ${url}` });
+    // Determine the command to use based on the platform
+    const isWindows = os.platform() === 'win32';
+
+    console.log('🔍 Platform:', os.platform());
+    console.log('🔍 Is Windows:', isWindows);
+    console.log('🔍 Requested URL:', url);
+
+    // Check if the local script exists (for reference)
+    const localScriptPath = path.resolve(__dirname, '../../echoHEIST.sh');
+    console.log('🔍 Local script path:', localScriptPath);
+    console.log('🔍 Local script exists:', fs.existsSync(localScriptPath));
+
+    // Use the Node.js grab module as a child process for server-side execution
+    console.log('🔄 Using Node.js grab module for server-side execution...');
 
     try {
-      const success = await grabTabWithLogging(url, socket);
-      if (success) {
-        socket.emit('log', {
-          type: 'success',
-          message: '🎉 Download process completed successfully!',
-        });
-      } else {
-        socket.emit('log', {
-          type: 'warning',
-          message: '⚠️ Download process completed but no file was downloaded',
-        });
+      // Generate a unique filename
+      const timestamp = Date.now();
+      const filename = `download_${timestamp}.gpx`;
+      const grabScriptPath = path.resolve(__dirname, '../../dist/cmd/grab.js');
+      const outputDir = path.join(__dirname, '../../downloads');
+
+      // Ensure downloads directory exists
+      if (!fs.existsSync(outputDir)) {
+        fs.mkdirSync(outputDir, { recursive: true });
+        console.log('📁 Created downloads directory:', outputDir);
       }
-    } catch (err) {
-      socket.emit('log', { type: 'error', message: `❌ Download process failed: ${err.message}` });
+
+      const fullOutputPath = path.join(outputDir, filename);
+
+      console.log('🚀 Starting Node.js grab process...');
+      console.log('🚀 Script path:', grabScriptPath);
+      console.log('🚀 URL:', url);
+      console.log('🚀 Output file:', filename);
+      console.log('🚀 Full output path:', fullOutputPath);
+
+      const result = await new Promise((resolve, reject) => {
+        const child = spawn('node', [grabScriptPath, url, fullOutputPath], {
+          cwd: path.join(__dirname, '../..'),
+          stdio: ['pipe', 'pipe', 'pipe'],
+        });
+
+        let stdout = '';
+        let stderr = '';
+
+        console.log('📡 Process started with PID:', child.pid);
+
+        child.stdout.on('data', (data) => {
+          const output = data.toString();
+          stdout += output;
+          console.log('📤 STDOUT:', output.trim());
+        });
+
+        child.stderr.on('data', (data) => {
+          const output = data.toString();
+          stderr += output;
+          console.log('📥 STDERR:', output.trim());
+        });
+
+        child.on('close', (code) => {
+          console.log('🏁 Process finished with exit code:', code);
+          console.log('📤 Final STDOUT:', stdout);
+          console.log('📥 Final STDERR:', stderr);
+
+          // Check if file was actually created, regardless of exit code
+          const fileExists = fs.existsSync(fullOutputPath);
+          console.log('🔍 File exists check:', fileExists);
+
+          if (fileExists) {
+            resolve({ stdout, stderr, filename, fullOutputPath });
+          } else {
+            // Even if exit code is 0, if no file was created, it's a failure
+            reject(
+              new Error(
+                `Download failed - no file created. Exit code: ${code}. Output: ${stdout}. Errors: ${stderr}`
+              )
+            );
+          }
+        });
+
+        child.on('error', (error) => {
+          console.log('❌ Process error:', error);
+          reject(new Error(`Failed to execute grab process: ${error.message}`));
+        });
+      });
+
+      // File existence is already checked in the process close handler
+
+      // Get file stats
+      const stats = fs.statSync(result.fullOutputPath);
+      const fileSize = (stats.size / 1024 / 1024).toFixed(2) + ' MB';
+
+      console.log('✅ File successfully created:', result.fullOutputPath);
+      console.log('📊 File size:', fileSize);
+      console.log('📅 File created:', stats.birthtime);
+
+      return res.json({
+        success: true,
+        originalUrl: url,
+        filename: result.filename,
+        fileSize: fileSize,
+        duration: 'Unknown',
+        message: 'File downloaded successfully (server-side)',
+        downloadUrl: `/download/${result.filename}`,
+        debug: {
+          serverPath: result.fullOutputPath,
+          fileCreated: stats.birthtime,
+          processOutput: result.stdout,
+          processErrors: result.stderr,
+          platform: os.platform(),
+          nodeVersion: process.version,
+        },
+      });
+    } catch (fallbackError) {
+      console.log('❌ Node.js grab process failed:', fallbackError.message);
+      return res.status(500).json({
+        error: 'Failed to download file. The server-side download process encountered an error.',
+        debug: {
+          error: fallbackError.message,
+          stack: fallbackError.stack,
+          platform: os.platform(),
+          url: url,
+        },
+      });
+    }
+  } catch (error) {
+    console.error('echoHEIST API error:', error);
+    res.status(500).json({
+      error: error.message || 'Internal server error',
+    });
+  }
+});
+
+// API endpoint for search
+app.post('/api/search', async (req, res) => {
+  try {
+    const { query } = req.body;
+
+    if (!query) {
+      return res.status(400).json({ error: 'Search query is required' });
+    }
+
+    console.log('🔍 Search query:', query);
+
+    // Use the Node.js search module
+    const searchScriptPath = path.resolve(__dirname, '../../dist/cmd/search.js');
+
+    console.log('🚀 Starting Node.js search process...');
+    console.log('🚀 Script path:', searchScriptPath);
+    console.log('🚀 Query:', query);
+
+    const result = await new Promise((resolve, reject) => {
+      const child = spawn('node', [searchScriptPath, query, '--json'], {
+        cwd: path.join(__dirname, '../..'),
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
+
+      let stdout = '';
+      let stderr = '';
+
+      console.log('📡 Process started with PID:', child.pid);
+
+      child.stdout.on('data', (data) => {
+        const output = data.toString();
+        stdout += output;
+        console.log('📤 STDOUT:', output.trim());
+      });
+
+      child.stderr.on('data', (data) => {
+        const output = data.toString();
+        stderr += output;
+        console.log('📥 STDERR:', output.trim());
+      });
+
+      child.on('close', (code) => {
+        console.log('🏁 Process finished with exit code:', code);
+        console.log('📤 Final STDOUT:', stdout);
+        console.log('📥 Final STDERR:', stderr);
+
+        if (code === 0) {
+          resolve({ stdout, stderr });
+        } else {
+          reject(new Error(`Search process failed with code ${code}: ${stderr}`));
+        }
+      });
+
+      child.on('error', (error) => {
+        console.log('❌ Process error:', error);
+        reject(new Error(`Failed to execute search process: ${error.message}`));
+      });
+    });
+
+    // Parse the search results from stdout
+    let results = [];
+    try {
+      // Try to parse as JSON first
+      results = JSON.parse(result.stdout);
+    } catch {
+      // If not JSON, try to parse as text output
+      const lines = result.stdout.split('\n').filter((line) => line.trim());
+      results = lines.map((line, index) => {
+        // Simple parsing - in real implementation, you'd parse the actual search output format
+        return {
+          title: `Result ${index + 1}`,
+          artist: 'Unknown',
+          url: line.trim(),
+          type: 'tab',
+          rating: null,
+        };
+      });
+    }
+
+    return res.json({
+      success: true,
+      query: query,
+      results: results,
+      count: results.length,
+    });
+  } catch (error) {
+    console.error('Search API error:', error);
+    res.status(500).json({
+      error: 'Failed to search. The server-side search process encountered an error.',
+      debug: {
+        error: error.message,
+        stack: error.stack,
+        platform: os.platform(),
+        query: req.body.query,
+      },
+    });
+  }
+});
+
+// File serving endpoint
+app.get('/download/:filename', (req, res) => {
+  const filename = req.params.filename;
+  const filePath = path.join(__dirname, '../../downloads', filename);
+
+  console.log('📥 File download request:', filename);
+  console.log('📁 File path:', filePath);
+
+  // Check if file exists
+  if (!fs.existsSync(filePath)) {
+    console.log('❌ File not found:', filePath);
+    return res.status(404).json({ error: 'File not found' });
+  }
+
+  // Get file stats
+  const stats = fs.statSync(filePath);
+  console.log('📊 Serving file:', filename, 'Size:', (stats.size / 1024 / 1024).toFixed(2) + ' MB');
+
+  // Set appropriate headers
+  res.setHeader('Content-Type', 'application/octet-stream');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.setHeader('Content-Length', stats.size);
+
+  // Stream the file
+  const fileStream = fs.createReadStream(filePath);
+
+  fileStream.on('error', (error) => {
+    console.log('❌ File stream error:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Error reading file' });
     }
   });
 
-  socket.on('disconnect', () => {
-    info(`Client disconnected: ${socket.id}`);
+  fileStream.pipe(res);
+
+  fileStream.on('end', () => {
+    console.log('✅ File served successfully:', filename);
   });
 });
 
-// Initialize and start server
-async function startServer() {
-  try {
-    // Initialize config
-    configEngine.loadConfig();
-
-    // Ensure tabs directory exists
-    await ensureTabsDir();
-
-    server.listen(PORT, () => {
-      info(`🚀 EchoHEIST Web App running on http://localhost:${PORT}`);
-      info(`📁 Tabs will be saved to: ${DEFAULT_TABS_DIR}`);
-      console.log(`\n🎸 EchoHEIST Web App is ready!`);
-      console.log(`🌐 Open your browser to: http://localhost:${PORT}`);
-      console.log(`📝 Paste any Ultimate Guitar tab URL to download Guitar Pro files`);
-    });
-  } catch (err) {
-    error(`Failed to start server: ${err.message}`);
-    process.exit(1);
-  }
-}
-
-// Graceful shutdown
-process.on('SIGINT', async () => {
-  info('Shutting down server...');
-  await closeBrowser();
-  process.exit(0);
+// Progress tracking endpoint
+app.get('/api/progress/:jobId', (req, res) => {
+  const jobId = req.params.jobId;
+  // In a real implementation, you'd track progress in memory or database
+  // For now, return a simple status
+  res.json({
+    jobId: jobId,
+    status: 'completed',
+    progress: 100,
+    message: 'Download completed',
+  });
 });
 
-startServer();
+// Serve the React app for all other routes
+app.use((req, res) => {
+  // Check if it's an API route
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ error: 'API endpoint not found' });
+  }
+
+  // Serve the main HTML file for all other routes
+  res.sendFile(path.join(__dirname, '../../public/echoheist.html'));
+});
+
+app.listen(PORT, () => {
+  console.log(`🚀 EchoHEIST Web App running on http://localhost:${PORT}`);
+  console.log(`📱 Open your browser and start downloading!`);
+});

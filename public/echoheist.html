@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EchoHEIST - Audio Downloader</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+            overflow-y: auto;
+        }
+
+        .container {
+            background: #2d2d30;
+            border: 1px solid #3e3e42;
+            border-radius: 8px;
+            padding: 2rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            max-width: 800px;
+            width: 90%;
+            margin: 2rem auto;
+            text-align: center;
+        }
+
+        .header {
+            margin-bottom: 2rem;
+        }
+
+        .ascii-art {
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 0.8rem;
+            color: #569cd6;
+            margin: 0 0 1rem 0;
+            text-shadow: 0 0 10px rgba(86, 156, 214, 0.3);
+            line-height: 1;
+        }
+
+        .tip {
+            color: #9cdcfe;
+            font-size: 1rem;
+            margin: 0;
+            font-style: italic;
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid #3e3e42;
+        }
+
+        .tab-btn {
+            background: transparent;
+            color: #9cdcfe;
+            border: none;
+            padding: 1rem 2rem;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            transition: all 0.2s ease;
+        }
+
+        .tab-btn.active {
+            color: #569cd6;
+            border-bottom-color: #569cd6;
+        }
+
+        .tab-btn:hover {
+            color: #d4d4d4;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 2rem;
+        }
+
+        .url-input {
+            width: 100%;
+            padding: 1rem;
+            border: 2px solid #3e3e42;
+            border-radius: 4px;
+            font-size: 1rem;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            transition: border-color 0.3s ease;
+            margin-bottom: 1rem;
+        }
+
+        .url-input:focus {
+            outline: none;
+            border-color: #569cd6;
+            box-shadow: 0 0 0 2px rgba(86, 156, 214, 0.2);
+        }
+
+        .url-input:disabled {
+            background-color: #2d2d30;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .submit-btn {
+            background: #0e639c;
+            color: #ffffff;
+            border: 1px solid #1177bb;
+            padding: 1rem 2rem;
+            border-radius: 4px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s ease, border-color 0.2s ease;
+            width: 100%;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        }
+
+        .submit-btn:hover:not(:disabled) {
+            background: #1177bb;
+            border-color: #1e88e5;
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            background: #3e3e42;
+            border-color: #3e3e42;
+        }
+
+        .result {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            border-radius: 4px;
+            display: none;
+            border: 1px solid;
+        }
+
+        .result.success {
+            background: #1e3a1e;
+            border-color: #4caf50;
+            color: #4caf50;
+        }
+
+        .result.error {
+            background: #3a1e1e;
+            border-color: #f44336;
+            color: #f44336;
+        }
+
+        .result h3 {
+            margin-bottom: 1rem;
+        }
+
+        .result p {
+            margin-bottom: 0.5rem;
+        }
+
+        .download-btn {
+            background: #0e7c0e;
+            color: white;
+            border: 1px solid #1b8e1b;
+            padding: 0.8rem 1.5rem;
+            border-radius: 4px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s ease, border-color 0.2s ease;
+            margin-top: 1rem;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        }
+
+        .download-btn:hover {
+            background: #1b8e1b;
+            border-color: #2e8b2e;
+        }
+
+        .loading {
+            display: none;
+            margin-top: 1rem;
+        }
+
+        .spinner {
+            border: 3px solid #3e3e42;
+            border-top: 3px solid #569cd6;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .debug-box {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            background: #252526;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            text-align: left;
+        }
+
+        .debug-box h3 {
+            color: #569cd6;
+            margin-bottom: 1rem;
+        }
+
+        #debugContent {
+            color: #9cdcfe;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 0.9rem;
+            line-height: 1.4;
+            max-height: 400px;
+            overflow-y: auto;
+            background: #1e1e1e;
+            padding: 1rem;
+            border-radius: 4px;
+            border: 1px solid #3e3e42;
+        }
+
+        #debugContent p {
+            margin: 0;
+        }
+
+        .debug-log-line {
+            margin: 0.2rem 0;
+            padding: 0.2rem 0;
+        }
+
+        .debug-log-line.info {
+            color: #569cd6;
+        }
+
+        .debug-log-line.success {
+            color: #4caf50;
+        }
+
+        .debug-log-line.warning {
+            color: #ff9800;
+        }
+
+        .debug-log-line.error {
+            color: #f44336;
+        }
+
+        /* Search Results */
+        .search-results {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            background: #252526;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+        }
+
+        .search-results h3 {
+            color: #569cd6;
+            margin-bottom: 1rem;
+        }
+
+        .result-item {
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            background: #1e1e1e;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        .result-item:hover {
+            background: #2d2d30;
+        }
+
+        .result-item h4 {
+            color: #569cd6;
+            margin: 0 0 0.5rem 0;
+            font-size: 1rem;
+        }
+
+        .result-item p {
+            color: #9cdcfe;
+            margin: 0;
+            font-size: 0.9rem;
+        }
+
+        .result-item .meta {
+            color: #6a9955;
+            font-size: 0.8rem;
+            margin-top: 0.5rem;
+        }
+
+        /* Download Progress */
+        .download-progress {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: #252526;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #1e1e1e;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 0.5rem;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #0e639c, #1177bb);
+            transition: width 0.3s ease;
+            border-radius: 2px;
+        }
+
+        .progress-text {
+            color: #9cdcfe;
+            font-size: 0.9rem;
+            margin: 0;
+            text-align: center;
+        }
+
+        /* Verbose Output */
+        .verbose-output {
+            margin-top: 1rem;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            background: #1e1e1e;
+        }
+
+        .verbose-output summary {
+            padding: 0.5rem 1rem;
+            background: #252526;
+            color: #569cd6;
+            cursor: pointer;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 0.9rem;
+        }
+
+        .verbose-output summary:hover {
+            background: #2d2d30;
+        }
+
+        .debug-log {
+            padding: 1rem;
+            background: #1e1e1e;
+            color: #9cdcfe;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 0.8rem;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 0;
+            border: none;
+        }
+
+        /* Footer links */
+        .footer-links {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            background: #252526;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .footer-links h3 {
+            color: #569cd6;
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+        }
+
+        .link-grid {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .footer-link {
+            display: inline-block;
+            padding: 0.8rem 1.5rem;
+            background: #0e639c;
+            color: white;
+            text-decoration: none;
+            border: 1px solid #1177bb;
+            border-radius: 4px;
+            font-weight: 600;
+            transition: background-color 0.2s ease, border-color 0.2s ease;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        }
+
+        .footer-link:hover {
+            background: #1177bb;
+            border-color: #1e88e5;
+            color: white;
+            text-decoration: none;
+        }
+
+        /* Main footer */
+        .main-footer {
+            text-align: center;
+            padding: 2rem 1rem;
+            color: #9cdcfe;
+            background: #1e1e1e;
+            border-top: 1px solid #3e3e42;
+            margin-top: 2rem;
+        }
+
+        .main-footer p {
+            opacity: 0.8;
+            margin: 0;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        }
+
+        .main-footer a {
+            color: #569cd6;
+            text-decoration: none;
+        }
+
+        .main-footer a:hover {
+            text-decoration: underline;
+            color: #9cdcfe;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 2rem 1.5rem;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .link-grid {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .footer-link {
+                width: 100%;
+                max-width: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <pre class="ascii-art">
+  ███████╗ ██████╗██╗  ██╗ ██████╗ ██╗  ██╗██╗███████╗████████╗
+  ██╔════╝██╔════╝██║  ██║██╔═══██╗██║  ██║██║██╔════╝╚══██╔══╝
+  █████╗  ██║     ███████║██║   ██║███████║██║███████╗   ██║   
+  ██╔══╝  ██║     ██╔══██║██║   ██║██╔══██║██║╚════██║   ██║   
+  ███████╗╚██████╗██║  ██║╚██████╔╝██║  ██║██║███████║   ██║   
+  ╚══════╝ ╚═════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝╚═╝╚══════╝   ╚═╝   
+            </pre>
+            <p class="tip">💡 Tip: Enter a link for a file from ultimate-guitar.com to download</p>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="download">Direct Download</button>
+            <button class="tab-btn" data-tab="search">Search & Download</button>
+        </div>
+
+        <form id="downloadForm" class="tab-content active">
+            <div class="form-group">
+                <input 
+                    type="url" 
+                    id="urlInput" 
+                    class="url-input" 
+                    placeholder="Enter Ultimate Guitar URL (e.g., https://tabs.ultimate-guitar.com/tab/artist/song)"
+                    required
+                >
+                <button type="submit" class="submit-btn" id="submitBtn">
+                    Download
+                </button>
+            </div>
+        </form>
+
+        <form id="searchForm" class="tab-content">
+            <div class="form-group">
+                <input 
+                    type="text" 
+                    id="searchInput" 
+                    class="url-input" 
+                    placeholder="Search for tabs (e.g., 'metallica one')"
+                    required
+                >
+                <button type="submit" class="submit-btn" id="searchBtn">
+                    Search
+                </button>
+            </div>
+        </form>
+
+        <div id="searchResults" class="search-results" style="display: none;">
+            <h3>Search Results</h3>
+            <div id="resultsList"></div>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Processing your request...</p>
+        </div>
+
+        <div class="result" id="result">
+            <h3 id="resultTitle"></h3>
+            <div id="resultContent"></div>
+        </div>
+
+        <div class="debug-box">
+            <h3>🔍 Debug Information</h3>
+            <div id="debugContent">
+                <p>No debug information available yet. Start a download to see detailed logs.</p>
+            </div>
+        </div>
+
+        <div class="footer-links">
+            <h3>Resources</h3>
+            <div class="link-grid">
+                <a href="/echoHEIST.sh" class="footer-link" download>
+                    📥 Download echoHEIST.sh
+                </a>
+                <a href="https://github.com/DTRHnet/Shell-Scripts/blob/main/echoHEIST.sh" class="footer-link" target="_blank" rel="noopener">
+                    🐙 View on GitHub
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <footer class="main-footer">
+        <p>A DTRHnet Project - <a href="mailto:admin@dtrh.net">admin [AT] dtrh [DOT] net</a></p>
+    </footer>
+
+    <script>
+        const downloadForm = document.getElementById('downloadForm');
+        const searchForm = document.getElementById('searchForm');
+        const urlInput = document.getElementById('urlInput');
+        const searchInput = document.getElementById('searchInput');
+        const submitBtn = document.getElementById('submitBtn');
+        const searchBtn = document.getElementById('searchBtn');
+        const loading = document.getElementById('loading');
+        const result = document.getElementById('result');
+        const resultTitle = document.getElementById('resultTitle');
+        const resultContent = document.getElementById('resultContent');
+        const searchResults = document.getElementById('searchResults');
+        const resultsList = document.getElementById('resultsList');
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        const tabContents = document.querySelectorAll('.tab-content');
+        const debugContent = document.getElementById('debugContent');
+
+        // Tab switching
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tab = btn.dataset.tab;
+                
+                // Update active tab button
+                tabBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                // Update active tab content
+                tabContents.forEach(content => content.classList.remove('active'));
+                document.getElementById(tab === 'download' ? 'downloadForm' : 'searchForm').classList.add('active');
+                
+                // Hide search results when switching to download tab
+                if (tab === 'download') {
+                    searchResults.style.display = 'none';
+                }
+            });
+        });
+
+        // Download form handler
+        downloadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const url = urlInput.value.trim();
+            if (!url) {
+                showError('Please enter a URL');
+                return;
+            }
+
+            // Validate URL format
+            try {
+                new URL(url);
+            } catch {
+                showError('Please enter a valid URL');
+                return;
+            }
+
+            setLoading(true);
+            hideResult();
+            clearDebugBox();
+            updateDebugBox('Starting download process...', 'info');
+            updateDebugBox(`Target URL: ${url}`, 'info');
+
+            try {
+                updateDebugBox('Sending request to server...', 'info');
+                const response = await fetch('/api/echoheist', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ url })
+                });
+
+                updateDebugBox(`Server response: ${response.status} ${response.statusText}`, 'info');
+                const data = await response.json();
+
+                if (!response.ok) {
+                    updateDebugBox(`Download failed: ${data.error}`, 'error');
+                    if (data.debug) {
+                        updateDebugBox('Debug information available in result details', 'warning');
+                    }
+                    throw new Error(data.error || 'Failed to process URL');
+                }
+
+                updateDebugBox('Download completed successfully!', 'success');
+                updateDebugBox(`File: ${data.filename} (${data.fileSize})`, 'success');
+                showSuccess(data);
+            } catch (error) {
+                updateDebugBox(`Error: ${error.message}`, 'error');
+                showError(error.message);
+            } finally {
+                setLoading(false);
+            }
+        });
+
+        // Search form handler
+        searchForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const query = searchInput.value.trim();
+            if (!query) {
+                showError('Please enter a search query');
+                return;
+            }
+
+            setLoading(true);
+            hideResult();
+            searchResults.style.display = 'none';
+            clearDebugBox();
+            updateDebugBox('Starting search process...', 'info');
+            updateDebugBox(`Search query: ${query}`, 'info');
+
+            try {
+                updateDebugBox('Sending search request to server...', 'info');
+                const response = await fetch('/api/search', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ query })
+                });
+
+                updateDebugBox(`Search response: ${response.status} ${response.statusText}`, 'info');
+                const data = await response.json();
+
+                if (!response.ok) {
+                    updateDebugBox(`Search failed: ${data.error}`, 'error');
+                    throw new Error(data.error || 'Search failed');
+                }
+
+                updateDebugBox(`Found ${data.results.length} results`, 'success');
+                showSearchResults(data.results || []);
+            } catch (error) {
+                updateDebugBox(`Search error: ${error.message}`, 'error');
+                showError(error.message);
+            } finally {
+                setLoading(false);
+            }
+        });
+
+        function setLoading(isLoading) {
+            submitBtn.disabled = isLoading;
+            searchBtn.disabled = isLoading;
+            loading.style.display = isLoading ? 'block' : 'none';
+            urlInput.disabled = isLoading;
+            searchInput.disabled = isLoading;
+        }
+
+        function showSearchResults(results) {
+            if (results.length === 0) {
+                resultsList.innerHTML = '<p style="color: #9cdcfe; text-align: center;">No results found</p>';
+            } else {
+                resultsList.innerHTML = results.map(item => `
+                    <div class="result-item" onclick="downloadFromResult('${item.url}')">
+                        <h4>${item.title}</h4>
+                        <p>${item.artist}</p>
+                        <div class="meta">Type: ${item.type} | Rating: ${item.rating || 'N/A'}</div>
+                    </div>
+                `).join('');
+            }
+            searchResults.style.display = 'block';
+        }
+
+        function downloadFromResult(url) {
+            // Switch to download tab and populate the URL
+            const downloadTab = document.querySelector('[data-tab="download"]');
+            downloadTab.click();
+            
+            urlInput.value = url;
+            
+            // Trigger download
+            downloadForm.dispatchEvent(new Event('submit'));
+        }
+
+        function showSuccess(data) {
+            result.className = 'result success';
+            resultTitle.textContent = '✅ Download Successful!';
+            
+            let content = `
+                <p><strong>URL:</strong> ${data.originalUrl}</p>
+                <p><strong>Filename:</strong> ${data.filename}</p>
+                <p><strong>Size:</strong> ${data.fileSize}</p>
+            `;
+            
+            if (data.duration) {
+                content += `<p><strong>Duration:</strong> ${data.duration}</p>`;
+            }
+            
+            if (data.downloadUrl) {
+                content += `
+                    <button class="download-btn" onclick="downloadFile('${data.downloadUrl}', '${data.filename}')">
+                        📥 Download File
+                    </button>
+                `;
+            }
+            
+            // Add verbose output section
+            if (data.debug) {
+                content += `
+                    <details class="verbose-output">
+                        <summary>🔍 Verbose Output</summary>
+                        <pre class="debug-log">${JSON.stringify(data.debug, null, 2)}</pre>
+                    </details>
+                `;
+            }
+            
+            resultContent.innerHTML = content;
+            result.style.display = 'block';
+        }
+
+        function showError(message) {
+            result.className = 'result error';
+            resultTitle.textContent = '❌ Error';
+            resultContent.innerHTML = `<p>${message}</p>`;
+            result.style.display = 'block';
+        }
+
+        function hideResult() {
+            result.style.display = 'none';
+        }
+
+        function updateDebugBox(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logLine = document.createElement('div');
+            logLine.className = `debug-log-line ${type}`;
+            logLine.textContent = `[${timestamp}] ${message}`;
+            
+            debugContent.appendChild(logLine);
+            debugContent.scrollTop = debugContent.scrollHeight;
+        }
+
+        function clearDebugBox() {
+            debugContent.innerHTML = '<p>Debug information cleared. Ready for new operation.</p>';
+        }
+
+        function downloadFile(url, filename) {
+            console.log('📥 Starting download:', url, filename);
+            
+            // Create a progress bar
+            const progressContainer = document.createElement('div');
+            progressContainer.className = 'download-progress';
+            progressContainer.innerHTML = `
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 0%"></div>
+                </div>
+                <p class="progress-text">Preparing download...</p>
+            `;
+            
+            // Insert progress bar after the download button
+            const downloadBtn = document.querySelector('.download-btn');
+            downloadBtn.parentNode.insertBefore(progressContainer, downloadBtn.nextSibling);
+            
+            // Simulate progress (in real implementation, you'd track actual progress)
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                progress += Math.random() * 15;
+                if (progress > 90) progress = 90;
+                
+                const progressFill = progressContainer.querySelector('.progress-fill');
+                const progressText = progressContainer.querySelector('.progress-text');
+                
+                progressFill.style.width = progress + '%';
+                progressText.textContent = `Downloading... ${Math.round(progress)}%`;
+            }, 200);
+            
+            // Start the actual download
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename || 'download';
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            
+            // Complete the progress when download starts
+            setTimeout(() => {
+                clearInterval(progressInterval);
+                const progressFill = progressContainer.querySelector('.progress-fill');
+                const progressText = progressContainer.querySelector('.progress-text');
+                
+                progressFill.style.width = '100%';
+                progressText.textContent = 'Download complete!';
+                
+                // Remove progress bar after a delay
+                setTimeout(() => {
+                    progressContainer.remove();
+                }, 2000);
+            }, 1000);
+            
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Auto-focus the input
+        urlInput.focus();
+    </script>
+</body>
+</html>

@@ -8,7 +8,7 @@
 import puppeteer from 'puppeteer'; // Use import instead of require
 import { execSync } from 'child_process'; // Use import instead of require
 import { info, error, warn, debug } from '../pkg/logger.js'; // Import logger functions
-import { shQ } from '../pkg/fileUtils.js'; // Import shQ from fileUtils
+// import { shQ } from '../pkg/fileUtils.js'; // Import shQ from fileUtils (not used in current implementation)
 import os from 'os';
 
 // Get arguments from process.argv
@@ -101,15 +101,19 @@ try {
       info('Captured download request. Initiating curl...');
       debug(`Download URL: ${url}`);
 
-      // Rebuild headers for curl command
+      // Rebuild headers for curl command with proper escaping
       const headers = Object.entries(req.headers())
-        .map(([key, value]) => `-H '${key}: ${shQ(value)}'`)
+        .map(([key, value]) => {
+          // Double-escape quotes and wrap the entire value in quotes
+          const escapedValue = value.replace(/"/g, '\\"').replace(/'/g, "\\'");
+          return `-H "${key}: ${escapedValue}"`;
+        })
         .join(' ');
 
       debug(`Request headers: ${JSON.stringify(req.headers())}`);
 
-      // Construct the curl command
-      const cmd = `curl -sSL --fail ${headers} --output '${outFile}' '${url}'`;
+      // Construct the curl command with proper quoting
+      const cmd = `curl -sSL --fail ${headers} --output "${outFile}" "${url}"`;
       debug(`Curl command: ${cmd}`);
 
       try {
