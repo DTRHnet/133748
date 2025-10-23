@@ -20,8 +20,8 @@
 
 ```
 Build command: npm run build:web
-Publish directory: public
-Node version: 20
+Publish directory: dist
+Node version: 18
 ```
 
 ### 3. Environment Variables
@@ -29,7 +29,7 @@ Node version: 20
 Add these environment variables in Netlify dashboard:
 
 ```
-NODE_VERSION=20
+NODE_VERSION=18
 CHROME_PATH=/opt/chrome-linux/chrome
 DEBUG=true
 ```
