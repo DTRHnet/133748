@@ -6,7 +6,7 @@
   publish = "dist"
   
   # Default build command
-  command = "npm run build:netlify"
+  command = "npm install && npm run build:netlify"
 
 [build.environment]
   # Node.js version
@@ -78,13 +78,13 @@
 
 # Branch-specific settings
 [context.production]
-  command = "npm run build:netlify"
+  command = "npm install && npm run build:netlify"
   environment = { NODE_ENV = "production" }
 
 [context.deploy-preview]
-  command = "npm run build:netlify"
+  command = "npm install && npm run build:netlify"
   environment = { NODE_ENV = "development" }
 
 [context.branch-deploy]
-  command = "npm run build:netlify"
+  command = "npm install && npm run build:netlify"
   environment = { NODE_ENV = "development" }
