@@ -36,10 +36,14 @@
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
 
-# Netlify Functions configuration (disabled - using Express server)
-# [functions]
-#   # Directory for Netlify Functions
-#   directory = "netlify/functions"
+# Netlify Functions configuration
+[functions]
+  # Directory for Netlify Functions
+  directory = "netlify/functions"
+  # Use esbuild for bundling with ESM support
+  node_bundler = "esbuild"
+  # External packages that should not be bundled (optional - for large dependencies)
+  external_node_modules = ["puppeteer", "puppeteer-extra", "puppeteer-extra-plugin-stealth"]
 
 # Edge Functions (if using)
 # [edge_functions]
