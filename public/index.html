@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>133748 - Ultimate Guitar Tab Downloader</title>
+    <meta name="description" content="A powerful web interface for searching and downloading Ultimate Guitar tabs">
+    <meta name="keywords" content="guitar tabs, ultimate guitar, music, tabs, guitar pro">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="/styles.css">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="container">
+                <div class="header-content">
+                    <div class="logo">
+                        <h1>133748</h1>
+                        <span class="subtitle">Ultimate Guitar Tab Downloader</span>
+                    </div>
+                    <div class="header-actions">
+                        <button id="debug-toggle" class="btn btn-secondary">Debug</button>
+                        <button id="help-btn" class="btn btn-secondary">Help</button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main">
+            <div class="container">
+                <!-- Search Section -->
+                <section class="search-section">
+                    <div class="search-container">
+                        <h2>Search for Guitar Tabs</h2>
+                        <form id="search-form" class="search-form">
+                            <div class="input-group">
+                                <input 
+                                    type="text" 
+                                    id="search-input" 
+                                    placeholder="Enter artist and song (e.g., 'metallica one')"
+                                    required
+                                >
+                                <button type="submit" class="btn btn-primary">
+                                    <span class="btn-text">Search</span>
+                                    <span class="btn-loading" style="display: none;">Searching...</span>
+                                </button>
+                            </div>
+                            <div class="search-options">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="guitar-pro-only" checked>
+                                    <span>Guitar Pro only</span>
+                                </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="json-output">
+                                    <span>JSON output</span>
+                                </label>
+                                <div class="limit-group">
+                                    <label for="result-limit">Limit:</label>
+                                    <select id="result-limit">
+                                        <option value="10">10</option>
+                                        <option value="25" selected>25</option>
+                                        <option value="50">50</option>
+                                        <option value="100">100</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </section>
+
+                <!-- Results Section -->
+                <section class="results-section" id="results-section" style="display: none;">
+                    <div class="results-header">
+                        <h3>Search Results</h3>
+                        <div class="results-actions">
+                            <button id="clear-results" class="btn btn-secondary">Clear</button>
+                            <button id="export-results" class="btn btn-secondary">Export</button>
+                        </div>
+                    </div>
+                    <div id="results-container" class="results-container">
+                        <!-- Results will be populated here -->
+                    </div>
+                </section>
+
+                <!-- Download Section -->
+                <section class="download-section">
+                    <div class="download-container">
+                        <h2>Download Single Tab</h2>
+                        <form id="download-form" class="download-form">
+                            <div class="input-group">
+                                <input 
+                                    type="url" 
+                                    id="download-url" 
+                                    placeholder="Enter Ultimate Guitar tab URL"
+                                    required
+                                >
+                                <button type="submit" class="btn btn-primary">
+                                    <span class="btn-text">Download</span>
+                                    <span class="btn-loading" style="display: none;">Downloading...</span>
+                                </button>
+                            </div>
+                            <div class="filename-group">
+                                <label for="filename">Filename (optional):</label>
+                                <input type="text" id="filename" placeholder="Auto-generated if empty">
+                            </div>
+                        </form>
+                    </div>
+                </section>
+
+                <!-- Debug Section -->
+                <section class="debug-section" id="debug-section" style="display: none;">
+                    <div class="debug-container">
+                        <h3>Debug Information</h3>
+                        <div class="debug-tabs">
+                            <button class="debug-tab active" data-tab="system">System</button>
+                            <button class="debug-tab" data-tab="logs">Logs</button>
+                            <button class="debug-tab" data-tab="config">Config</button>
+                        </div>
+                        <div class="debug-content">
+                            <div id="debug-system" class="debug-panel active">
+                                <pre id="system-info">Loading system information...</pre>
+                            </div>
+                            <div id="debug-logs" class="debug-panel">
+                                <div class="logs-container">
+                                    <div id="logs-list" class="logs-list"></div>
+                                    <button id="clear-logs" class="btn btn-secondary">Clear Logs</button>
+                                </div>
+                            </div>
+                            <div id="debug-config" class="debug-panel">
+                                <pre id="config-info">Loading configuration...</pre>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="container">
+                <div class="footer-content">
+                    <div class="footer-info">
+                        <p>&copy; 2025 133748 - Ultimate Guitar Tab Downloader</p>
+                        <p>Built with ❤️ for musicians everywhere</p>
+                    </div>
+                    <div class="footer-links">
+                        <a href="https://github.com/DTRHnet/133748" target="_blank" rel="noopener">GitHub</a>
+                        <a href="https://dtrh.net" target="_blank" rel="noopener">Author</a>
+                        <a href="#" id="api-docs-link">API Docs</a>
+                    </div>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay" style="display: none;">
+        <div class="loading-spinner"></div>
+        <p>Processing...</p>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Help Modal -->
+    <div id="help-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Help & Usage</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <h4>Search Functionality</h4>
+                <p>Enter an artist and song name to search for tabs on Ultimate Guitar. Examples:</p>
+                <ul>
+                    <li><code>metallica one</code></li>
+                    <li><code>dream theater pull me under</code></li>
+                    <li><code>plini electric sunrise</code></li>
+                </ul>
+                
+                <h4>Download Functionality</h4>
+                <p>Paste a direct URL to an Ultimate Guitar tab page to download it. The URL should look like:</p>
+                <code>https://tabs.ultimate-guitar.com/tab/metallica/one-guitar-pro-54157</code>
+                
+                <h4>Options</h4>
+                <ul>
+                    <li><strong>Guitar Pro only:</strong> Filter results to show only Guitar Pro tabs</li>
+                    <li><strong>JSON output:</strong> Return results in JSON format for API usage</li>
+                    <li><strong>Limit:</strong> Maximum number of results to return</li>
+                </ul>
+                
+                <h4>API Endpoints</h4>
+                <ul>
+                    <li><code>GET /api/search?query=metallica+one</code></li>
+                    <li><code>POST /api/grab</code> with <code>{"url": "...", "filename": "..."}</code></li>
+                    <li><code>GET /api/health</code> for system status</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/app.js"></script>
+</body>
+</html>

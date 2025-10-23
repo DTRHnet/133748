@@ -1,0 +1,87 @@
+[build]
+  # Directory to change to before starting a build
+  base = "."
+  
+  # Directory that contains the deploy-ready HTML files and assets
+  publish = "dist"
+  
+  # Default build command
+  command = "npm run build:web"
+
+[build.environment]
+  # Node.js version
+  NODE_VERSION = "18"
+  
+  # Enable Node.js functions
+  AWS_LAMBDA_JS_RUNTIME = "nodejs18.x"
+  
+  # Build environment variables
+  NODE_ENV = "production"
+
+# Redirect rules for SPA routing
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Headers for security and performance
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://api.netlify.com;"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Netlify Functions configuration
+[functions]
+  # Directory for Netlify Functions
+  directory = "netlify/functions"
+
+# Edge Functions (if using)
+[edge_functions]
+  directory = "netlify/edge-functions"
+
+# Form handling
+[build.processing]
+  skip_processing = false
+
+[build.processing.css]
+  bundle = true
+  minify = true
+
+[build.processing.js]
+  bundle = true
+  minify = true
+
+[build.processing.html]
+  pretty_urls = true
+
+# Plugin configuration
+[[plugins]]
+  package = "@netlify/plugin-lighthouse"
+
+  [plugins.inputs.thresholds]
+    performance = 0.8
+    accessibility = 0.9
+    best-practices = 0.8
+    seo = 0.8
+
+# Branch-specific settings
+[context.production]
+  command = "npm run build:web"
+  environment = { NODE_ENV = "production" }
+
+[context.deploy-preview]
+  command = "npm run build:web"
+  environment = { NODE_ENV = "development" }
+
+[context.branch-deploy]
+  command = "npm run build:web"
+  environment = { NODE_ENV = "development" }

@@ -1,17 +1,47 @@
 module.exports = {
   env: {
-    node: true,
-    es2021: true
+    browser: true,
+    es2021: true,
+    node: true
   },
   extends: [
-    'eslint:recommended',
-    'prettier' // Must be last
+    'eslint:recommended'
   ],
   parserOptions: {
-    ecmaVersion: 12,
+    ecmaVersion: 'latest',
     sourceType: 'module'
   },
   rules: {
-    // Add your custom rules here
-  }
+    'no-unused-vars': ['error', { 
+      'argsIgnorePattern': '^_',
+      'varsIgnorePattern': '^_'
+    }],
+    'no-case-declarations': 'off'
+  },
+  overrides: [
+    {
+      files: ['public/**/*.js'],
+      env: {
+        browser: true,
+        node: false
+      },
+      globals: {
+        window: 'readonly',
+        document: 'readonly',
+        console: 'readonly',
+        fetch: 'readonly',
+        URL: 'readonly',
+        URLSearchParams: 'readonly',
+        Blob: 'readonly',
+        FileReader: 'readonly'
+      }
+    },
+    {
+      files: ['netlify/functions/**/*.js'],
+      env: {
+        node: true,
+        browser: false
+      }
+    }
+  ]
 };
