@@ -77,8 +77,16 @@ try {
     Write-Host "✅ Project built successfully" -ForegroundColor Green
 } catch {
     Write-Host "❌ Failed to build project" -ForegroundColor Red
-    Read-Host "Press Enter to exit"
-    exit 1
+    Write-Host "This might be due to missing dependencies. Trying to install them..." -ForegroundColor Yellow
+    try {
+        npm install --force
+        npm run build
+        Write-Host "✅ Project built successfully after dependency reinstall" -ForegroundColor Green
+    } catch {
+        Write-Host "❌ Still failed to build project" -ForegroundColor Red
+        Read-Host "Press Enter to exit"
+        exit 1
+    }
 }
 
 Write-Host ""

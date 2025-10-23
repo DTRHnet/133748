@@ -74,6 +74,8 @@ npm run web
 ### Recommended
 
 - **Chrome/Chromium** - For better performance (Puppeteer will use bundled Chromium if not found)
+- **PowerShell 5.1+** (Windows) - For running PowerShell installation scripts
+- **Git** - For cloning the repository
 
 ## 🎯 Usage
 
@@ -516,6 +518,23 @@ request_timeout_ms = 15000
 
 # Path to Chrome executable (optional)
 # chrome_path = /usr/bin/google-chrome-stable
+```
+
+## 🪟 Windows Users
+
+For detailed Windows setup instructions, see [WINDOWS_SETUP.md](WINDOWS_SETUP.md)
+
+### Quick Windows Setup
+
+```cmd
+# Command Prompt
+install.bat
+run.bat
+
+# PowerShell (Recommended)
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+.\install.ps1
+.\run.ps1
 ```
 
 ## 🚨 Troubleshooting
