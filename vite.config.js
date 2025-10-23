@@ -7,14 +7,31 @@ export default defineConfig({
     outDir: 'dist',
     rollupOptions: {
       input: {
-        main: './src/index.js',
         web: './src/web/index.html',
       },
       output: {
-        entryFileNames: (chunkInfo) => {
-          return chunkInfo.name === 'web' ? 'web/[name].js' : '[name].js';
-        },
+        entryFileNames: 'web/[name].js',
       },
+      external: [
+        'child_process',
+        'fs',
+        'path',
+        'os',
+        'url',
+        'node:process',
+        'node:buffer',
+        'node:path',
+        'node:url',
+        'node:util',
+        'node:child_process',
+        'node:fs/promises',
+        'node:stream',
+        'node:events',
+        'node:fs',
+        'node:os',
+        'assert',
+        'module',
+      ],
     },
   },
   server: {
@@ -22,4 +39,7 @@ export default defineConfig({
     open: true,
   },
   base: '/',
+  define: {
+    global: 'globalThis',
+  },
 });
