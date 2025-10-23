@@ -10,10 +10,7 @@
 
 [build.environment]
   # Node.js version
-  NODE_VERSION = "18"
-  
-  # Enable Node.js functions
-  AWS_LAMBDA_JS_RUNTIME = "nodejs18.x"
+  NODE_VERSION = "20"
   
   # Build environment variables
   NODE_ENV = "production"
@@ -39,10 +36,10 @@
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
 
-# Netlify Functions configuration
-[functions]
-  # Directory for Netlify Functions
-  directory = "netlify/functions"
+# Netlify Functions configuration (disabled - using Express server)
+# [functions]
+#   # Directory for Netlify Functions
+#   directory = "netlify/functions"
 
 # Edge Functions (if using)
 # [edge_functions]

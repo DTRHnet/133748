@@ -41,3 +41,6 @@ node_modules/
 
 # Other
 *.bak
+
+# Local Netlify folder
+.netlify
