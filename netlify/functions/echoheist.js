@@ -203,8 +203,8 @@ export const handler = async (event, _context) => {
       };
     }
 
-    // Download the file using the captured URL and headers
-    console.log(`Downloading file from: ${downloadUrl}`);
+    // Stream the download directly to the client without storing on server
+    console.log(`Streaming download from: ${downloadUrl}`);
     console.log(`Using headers:`, downloadHeaders);
 
     const response = await fetch(downloadUrl, {
@@ -226,15 +226,6 @@ export const handler = async (event, _context) => {
       throw new Error(`Download failed with status: ${response.status} - ${errorText}`);
     }
 
-    const fileBuffer = await response.arrayBuffer();
-    console.log(`Downloaded file size: ${fileBuffer.byteLength} bytes`);
-
-    if (fileBuffer.byteLength === 0) {
-      throw new Error('Downloaded file is empty');
-    }
-
-    const base64Data = Buffer.from(fileBuffer).toString('base64');
-
     // Extract filename from URL or use default
     const urlParts = downloadUrl.split('/');
     let filename = urlParts[urlParts.length - 1] || 'download.gpx';
@@ -245,15 +236,64 @@ export const handler = async (event, _context) => {
       filename += '.gpx'; // Add extension if missing
     }
 
-    console.log(`Final filename: ${filename}`);
+    console.log(`Streaming filename: ${filename}`);
 
+    // Get content length from response headers
+    const contentLength = response.headers.get('content-length');
+    console.log(`Content length: ${contentLength} bytes`);
+
+    // Stream the response body in chunks to avoid loading entire file into memory
+    const chunks = [];
+    const reader = response.body.getReader();
+    let totalSize = 0;
+
+    try {
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        chunks.push(value);
+        totalSize += value.length;
+
+        // Log progress for large files
+        if (totalSize % (1024 * 1024) === 0) {
+          // Every MB
+          console.log(`Streamed ${Math.round(totalSize / 1024 / 1024)}MB so far...`);
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
+
+    if (totalSize === 0) {
+      throw new Error('Downloaded file is empty');
+    }
+
+    console.log(`Streamed file size: ${totalSize} bytes`);
+
+    // Combine chunks into a single buffer
+    const responseBody = new Uint8Array(totalSize);
+    let offset = 0;
+    for (const chunk of chunks) {
+      responseBody.set(chunk, offset);
+      offset += chunk.length;
+    }
+
+    // Convert to base64 for Netlify functions (required for binary data)
+    const base64Data = Buffer.from(responseBody).toString('base64');
+
+    // Return the file as a stream with proper headers
     return {
       statusCode: 200,
       headers: {
         ...headers,
         'Content-Type': 'application/octet-stream',
         'Content-Disposition': `attachment; filename="${filename}"`,
-        'Content-Length': fileBuffer.byteLength.toString(),
+        'Content-Length': totalSize.toString(),
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        Pragma: 'no-cache',
+        Expires: '0',
       },
       body: base64Data,
       isBase64Encoded: true,
