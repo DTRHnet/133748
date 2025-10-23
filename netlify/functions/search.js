@@ -74,6 +74,22 @@ export const handler = async (event) => {
         }
 
         const html = await response.text();
+
+        // Check if we got an error page instead of search results
+        if (html.includes('<!DOCTYPE') && html.includes('<html')) {
+          // This looks like an HTML page, check if it's an error
+          if (html.includes('error') || html.includes('not found') || html.includes('blocked')) {
+            console.log(`Page ${page} returned error page, stopping search`);
+            break;
+          }
+        }
+
+        // Check if we got a valid search results page
+        if (!html.includes('ultimate-guitar') && !html.includes('search')) {
+          console.log(`Page ${page} doesn't appear to be a search results page, stopping`);
+          break;
+        }
+
         const $ = cheerio.load(html);
 
         // Extract results from this page
@@ -175,6 +191,78 @@ export const handler = async (event) => {
 
     console.log(`Paginated search complete. Total unique results: ${allResults.length}`);
 
+    // If no results found, try a simpler single-page search as fallback
+    if (allResults.length === 0) {
+      console.log('No results from paginated search, trying fallback single-page search...');
+
+      try {
+        const encodedQuery = encodeURIComponent(query);
+        const fallbackUrl = `https://www.ultimate-guitar.com/search.php?search_type=title&value=${encodedQuery}`;
+
+        const fallbackResponse = await fetch(fallbackUrl, {
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Accept-Encoding': 'gzip, deflate, br',
+            Connection: 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Cache-Control': 'no-cache',
+            Pragma: 'no-cache',
+          },
+        });
+
+        if (fallbackResponse.ok) {
+          const fallbackHtml = await fallbackResponse.text();
+          const $fallback = cheerio.load(fallbackHtml);
+
+          $fallback('a[href*="/tab/"]').each((index, element) => {
+            if (allResults.length >= limitNum) return false;
+
+            const $el = $fallback(element);
+            const url = $el.attr('href');
+            const title = $el.text().trim();
+
+            if (url && title && title.length > 3) {
+              const fullUrl = url.startsWith('http')
+                ? url
+                : new URL(url, 'https://www.ultimate-guitar.com').href;
+
+              const parts = title.split(' - ');
+              const artist = parts.length > 1 ? parts[0].trim() : 'Unknown Artist';
+              const songTitle = parts.length > 1 ? parts.slice(1).join(' - ').trim() : title;
+
+              let type = 'Tab';
+              if (url.includes('guitar-pro')) type = 'Guitar Pro';
+              else if (url.includes('bass')) type = 'Bass';
+              else if (url.includes('drums')) type = 'Drums';
+              else if (url.includes('chords')) type = 'Chords';
+              else if (url.includes('power')) type = 'Power';
+              else if (url.includes('official')) type = 'Official';
+              else if (url.includes('video')) type = 'Video';
+
+              allResults.push({
+                title: songTitle.replace(/\s*\([^)]*\)\s*$/, '').trim(),
+                artist: artist,
+                type: type,
+                rating: 'N/A',
+                votes: '0',
+                url: fullUrl,
+              });
+            }
+          });
+
+          console.log(`Fallback search found ${allResults.length} results`);
+        }
+      } catch (fallbackError) {
+        console.log(`Fallback search also failed: ${fallbackError.message}`);
+      }
+    }
+
     // Sort results by type and title for better organization
     allResults.sort((a, b) => {
       // First sort by type
@@ -214,6 +302,21 @@ export const handler = async (event) => {
     };
   } catch (error) {
     console.error('Search function error:', error);
+
+    // Check if it's a JSON parsing error
+    if (error.message.includes('Unexpected token') || error.message.includes('JSON')) {
+      return {
+        statusCode: 500,
+        headers: corsHeaders,
+        body: JSON.stringify({
+          success: false,
+          error: 'Search service temporarily unavailable',
+          message: 'Ultimate Guitar may be blocking requests or returning invalid responses',
+          details: 'Please try again in a few moments',
+          timestamp: new Date().toISOString(),
+        }),
+      };
+    }
 
     return {
       statusCode: 500,
