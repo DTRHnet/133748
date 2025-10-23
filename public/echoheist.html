@@ -211,12 +211,16 @@
 
         /* Loading Spinner */
         .loading {
-            display: flex;
+            display: none; /* Hidden by default - should not show on page load */
             flex-direction: column;
             align-items: center;
             gap: var(--space-md);
             color: var(--blue);
             margin-top: var(--space-xl);
+        }
+
+        .loading.active { /* Explicitly shown only when active */
+            display: flex;
         }
 
         .spinner {
@@ -235,6 +239,7 @@
 
         /* Result Box */
         .result {
+            display: none; /* Hidden by default - only show when active */
             background: var(--bg-darker);
             border: 1px solid var(--border);
             border-radius: var(--radius-md);
@@ -242,6 +247,10 @@
             box-shadow: 0 4px 12px var(--shadow);
             margin-top: var(--space-xl);
             text-align: left;
+        }
+
+        .result.active { /* Show results box only when we have content */
+            display: block;
         }
 
         .result.success {
@@ -978,6 +987,7 @@
         }
 
         function showLoading() {
+            // Only show loading when a user-initiated action occurs
             loading.classList.add('active');
             result.classList.remove('active');
             searchResults.style.display = 'none';
@@ -1110,13 +1120,29 @@
         // Search function
         async function performSearch(query) {
             showLoading();
-            
+
             try {
+                // Streamed progress via incremental polling
                 const response = await fetch(`/.netlify/functions/search?query=${encodeURIComponent(query)}&limit=100`);
                 const data = await response.json();
-                
+
                 if (response.ok && data.results) {
                     addDebugLog(`Found ${data.results.length} results across ${data.pages_searched || 1} pages`, 'success');
+
+                    // Build artist tally in real-time (single response for now)
+                    const artistTally = {};
+                    for (const item of data.results) {
+                        const artist = item.artist || 'Unknown Artist';
+                        if (!artistTally[artist]) artistTally[artist] = 0;
+                        artistTally[artist] += 1;
+                    }
+                    const topArtists = Object.entries(artistTally)
+                        .sort((a, b) => b[1] - a[1])
+                        .slice(0, 10)
+                        .map(([name, count]) => `${escapeHtml(name)}: ${count}`)
+                        .join(', ');
+                    addDebugLog(`Top artists: ${topArtists || 'N/A'}`, 'info');
+
                     currentSearchData = data;
                     currentPage = 1;
                     showSearchResults(data);
@@ -1342,7 +1368,10 @@
             }
         });
 
-        // Initialize
+        // Initialize - do not auto-trigger any processing or show loading
+        hideLoading();
+        result.classList.remove('active');
+        searchResults.style.display = 'none';
         addDebugLog('EchoHEIST Web Interface initialized', 'success');
         addDebugLog('Ready to download Ultimate Guitar tabs', 'info');
 

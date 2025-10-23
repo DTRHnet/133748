@@ -35,9 +35,114 @@ export const handler = async (event) => {
 
     console.log(`Starting paginated search for: "${query}"`);
 
-    const limitNum = parseInt(limit);
+    const limitNum = Math.max(1, Math.min(200, parseInt(limit)));
     const allResults = [];
     const maxPages = Math.min(10, Math.ceil(limitNum / 20)); // Ultimate Guitar shows ~20 results per page
+
+    // Utility to decode minimal HTML entities present in inline JSON
+    const decodeHtmlEntities = (text) =>
+      text
+        .replace(/&quot;/g, '"')
+        .replace(/&#039;/g, "'")
+        .replace(/&apos;/g, "'")
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>');
+
+    // Robust extractor: prefer inline JSON blocks over DOM anchors
+    const extractResultsFromHtml = (html, limitNum, allResults) => {
+      const results = [];
+      const decoded = decodeHtmlEntities(html);
+
+      // Strategy 1: Scan for tab_url anywhere, then infer nearby fields
+      const tabUrlRegex = /"tab_url"\s*:\s*"(https?:[^"\s]+)"/g;
+      const windowSize = 500; // chars around match to glean artist/song
+      const seen = new Set(allResults.map((r) => r.url));
+
+      let match;
+      while ((match = tabUrlRegex.exec(decoded)) && results.length + allResults.length < limitNum) {
+        const url = match[1];
+        const ctxStart = Math.max(0, match.index - windowSize);
+        const ctxEnd = Math.min(decoded.length, match.index + windowSize);
+        const ctx = decoded.slice(ctxStart, ctxEnd);
+
+        const artistMatch = ctx.match(/"artist_name"\s*:\s*"([^"]+)"/);
+        const songMatch = ctx.match(/"song_name"\s*:\s*"([^"]+)"/);
+        const ratingMatch = ctx.match(/"rating"\s*:\s*(\d+(?:\.\d+)?)/);
+        const votesMatch = ctx.match(/"votes"\s*:\s*(\d+)/);
+
+        const artist = artistMatch ? artistMatch[1] : 'Unknown Artist';
+        const songTitle = songMatch ? songMatch[1] : 'Unknown Song';
+
+        let type = 'Tab';
+        if (url.includes('guitar-pro')) type = 'Guitar Pro';
+        else if (url.includes('official')) type = 'Official';
+        else if (url.includes('bass')) type = 'Bass';
+        else if (url.includes('drums')) type = 'Drums';
+        else if (url.includes('power')) type = 'Power';
+        else if (url.includes('chords')) type = 'Chords';
+        else if (url.includes('/tab/')) type = 'Tab';
+
+        const result = {
+          title: songTitle,
+          artist,
+          type,
+          rating: ratingMatch ? ratingMatch[1] : 'N/A',
+          votes: votesMatch ? votesMatch[1] : '0',
+          url,
+        };
+
+        if (!seen.has(url)) {
+          seen.add(url);
+          results.push(result);
+        }
+      }
+
+      // Strategy 2: Fallback to DOM anchors if present (some pages SSR anchors)
+      try {
+        const $ = cheerio.load(decoded);
+        $('a[href*="/tab/"]').each((_, el) => {
+          if (results.length + allResults.length >= limitNum) return false;
+          const url = $(el).attr('href');
+          const titleText = $(el).text().trim();
+          if (!url || !titleText) return;
+          const absoluteUrl = url.startsWith('http') ? url : new URL(url, 'https://www.ultimate-guitar.com').href;
+
+          let artist = 'Unknown Artist';
+          let songTitle = titleText;
+          const parts = titleText.split(' - ');
+          if (parts.length > 1) {
+            artist = parts[0].trim();
+            songTitle = parts.slice(1).join(' - ').trim();
+          }
+
+          let type = 'Tab';
+          if (absoluteUrl.includes('guitar-pro')) type = 'Guitar Pro';
+          else if (absoluteUrl.includes('official')) type = 'Official';
+          else if (absoluteUrl.includes('bass')) type = 'Bass';
+          else if (absoluteUrl.includes('drums')) type = 'Drums';
+          else if (absoluteUrl.includes('power')) type = 'Power';
+          else if (absoluteUrl.includes('chords')) type = 'Chords';
+
+          const result = {
+            title: songTitle.replace(/\s*\([^)]*\)\s*$/, '').trim(),
+            artist,
+            type,
+            rating: 'N/A',
+            votes: '0',
+            url: absoluteUrl,
+          };
+
+          if (!results.some((r) => r.url === result.url) && !allResults.some((r) => r.url === result.url)) {
+            results.push(result);
+          }
+        });
+      } catch (_) {
+        // ignore DOM parse errors
+      }
+
+      return results;
+    };
 
     // Search multiple pages like the command line version
     for (let page = 1; page <= maxPages; page++) {
@@ -51,6 +156,11 @@ export const handler = async (event) => {
         console.log(`Fetching: ${searchUrl}`);
 
         // Fetch the search page
+        // Simple rate limiting: delay before each page to be respectful
+        if (page > 1) {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+
         const response = await fetch(searchUrl, {
           headers: {
             'User-Agent':
@@ -90,84 +200,11 @@ export const handler = async (event) => {
           break;
         }
 
-        const $ = cheerio.load(html);
-
-        // Extract results from this page
-        const pageResults = [];
-
-        // Look for tab links - Ultimate Guitar uses various selectors
-        const tabLinks = $('a[href*="/tab/"]');
-
-        tabLinks.each((index, element) => {
-          if (allResults.length >= limitNum) return false;
-
-          const $el = $(element);
-          const url = $el.attr('href');
-          const title = $el.text().trim();
-
-          if (url && title && title.length > 3) {
-            // Make sure URL is absolute
-            const fullUrl = url.startsWith('http')
-              ? url
-              : new URL(url, 'https://www.ultimate-guitar.com').href;
-
-            // Parse the title to extract artist and song
-            // Ultimate Guitar format is usually "Artist - Song Name (Type)"
-            let artist = 'Unknown Artist';
-            let songTitle = title;
-            let type = 'Tab';
-
-            // Try to extract artist and song from title
-            const parts = title.split(' - ');
-            if (parts.length > 1) {
-              artist = parts[0].trim();
-              songTitle = parts.slice(1).join(' - ').trim();
-            }
-
-            // Extract type from the URL or title
-            if (url.includes('guitar-pro')) {
-              type = 'Guitar Pro';
-            } else if (url.includes('bass')) {
-              type = 'Bass';
-            } else if (url.includes('drums')) {
-              type = 'Drums';
-            } else if (url.includes('chords')) {
-              type = 'Chords';
-            } else if (url.includes('power')) {
-              type = 'Power';
-            } else if (url.includes('official')) {
-              type = 'Official';
-            } else if (url.includes('video')) {
-              type = 'Video';
-            }
-
-            // Clean up the song title (remove type indicators)
-            songTitle = songTitle.replace(/\s*\([^)]*\)\s*$/, '').trim();
-
-            const result = {
-              title: songTitle,
-              artist: artist,
-              type: type,
-              rating: 'N/A',
-              votes: '0',
-              url: fullUrl,
-            };
-
-            // Avoid duplicates
-            const isDuplicate = allResults.some(
-              (existing) =>
-                existing.url === fullUrl ||
-                (existing.artist === artist &&
-                  existing.title === songTitle &&
-                  existing.type === type)
-            );
-
-            if (!isDuplicate) {
-              pageResults.push(result);
-              allResults.push(result);
-            }
-          }
-        });
+        const pageResults = extractResultsFromHtml(html, limitNum, allResults);
+        for (const r of pageResults) {
+          if (allResults.length >= limitNum) break;
+          if (!allResults.some((x) => x.url === r.url)) allResults.push(r);
+        }
 
         console.log(
           `Page ${page}: Found ${pageResults.length} new results (${allResults.length} total)`
@@ -180,9 +217,7 @@ export const handler = async (event) => {
         }
 
         // Small delay between requests to be respectful
-        if (page < maxPages) {
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-        }
+        // Additional politeness delay already applied above
       } catch (error) {
         console.log(`Error on page ${page}: ${error.message}`);
         break; // Stop pagination on error
@@ -218,45 +253,12 @@ export const handler = async (event) => {
 
         if (fallbackResponse.ok) {
           const fallbackHtml = await fallbackResponse.text();
-          const $fallback = cheerio.load(fallbackHtml);
-
-          $fallback('a[href*="/tab/"]').each((index, element) => {
-            if (allResults.length >= limitNum) return false;
-
-            const $el = $fallback(element);
-            const url = $el.attr('href');
-            const title = $el.text().trim();
-
-            if (url && title && title.length > 3) {
-              const fullUrl = url.startsWith('http')
-                ? url
-                : new URL(url, 'https://www.ultimate-guitar.com').href;
-
-              const parts = title.split(' - ');
-              const artist = parts.length > 1 ? parts[0].trim() : 'Unknown Artist';
-              const songTitle = parts.length > 1 ? parts.slice(1).join(' - ').trim() : title;
-
-              let type = 'Tab';
-              if (url.includes('guitar-pro')) type = 'Guitar Pro';
-              else if (url.includes('bass')) type = 'Bass';
-              else if (url.includes('drums')) type = 'Drums';
-              else if (url.includes('chords')) type = 'Chords';
-              else if (url.includes('power')) type = 'Power';
-              else if (url.includes('official')) type = 'Official';
-              else if (url.includes('video')) type = 'Video';
-
-              allResults.push({
-                title: songTitle.replace(/\s*\([^)]*\)\s*$/, '').trim(),
-                artist: artist,
-                type: type,
-                rating: 'N/A',
-                votes: '0',
-                url: fullUrl,
-              });
-            }
-          });
-
-          console.log(`Fallback search found ${allResults.length} results`);
+          const extracted = extractResultsFromHtml(fallbackHtml, limitNum, allResults);
+          for (const r of extracted) {
+            if (allResults.length >= limitNum) break;
+            if (!allResults.some((x) => x.url === r.url)) allResults.push(r);
+          }
+          console.log(`Fallback search found ${extracted.length} results`);
         }
       } catch (fallbackError) {
         console.log(`Fallback search also failed: ${fallbackError.message}`);
