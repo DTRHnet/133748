@@ -1,7 +1,7 @@
 import { debug, info, error } from '../pkg/logger.js';
 import { searchAndPaginate } from '../internal/scraper/index.js';
 import { APP_INFO } from '../pkg/constants.js';
-import { renderTui } from '../tui/SearchTui.js';
+// Dynamic import for TUI to avoid bundling issues in serverless environments
 
 /**
  * Handles the 'search' command.
@@ -205,6 +205,8 @@ export async function handleSearchCommand(args) {
       // Display the search summary line
       info(`Results: Search Term: "${query}", found ${allCollectedLinks.length} total tab files.`);
       info('---------------------------------');
+      // Dynamic import to avoid bundling TUI dependencies in serverless environments
+      const { renderTui } = await import('../tui/SearchTui.js');
       const app = renderTui([tuiRootNode]); // Store the app instance returned by renderTui
       await app.waitUntilExit(); // Add this line to wait for the TUI to exit
     } else if (jsonOutput) {
