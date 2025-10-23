@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EchoHEIST - Ultimate Guitar Tab Downloader</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+            overflow-y: auto;
+        }
+
+        .container {
+            background: #2d2d30;
+            border: 1px solid #3e3e42;
+            border-radius: 8px;
+            padding: 2rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            max-width: 800px;
+            width: 90%;
+            margin: 2rem auto;
+            text-align: center;
+        }
+
+        .header {
+            margin-bottom: 2rem;
+        }
+
+        .ascii-art {
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 0.8rem;
+            color: #569cd6;
+            margin: 0 0 1rem 0;
+            text-shadow: 0 0 10px rgba(86, 156, 214, 0.3);
+            line-height: 1;
+        }
+
+        .tip {
+            color: #9cdcfe;
+            font-size: 1rem;
+            margin: 0;
+            font-style: italic;
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid #3e3e42;
+        }
+
+        .tab-btn {
+            background: transparent;
+            color: #9cdcfe;
+            border: none;
+            padding: 1rem 2rem;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            transition: all 0.2s ease;
+        }
+
+        .tab-btn.active {
+            color: #569cd6;
+            border-bottom-color: #569cd6;
+        }
+
+        .tab-btn:hover {
+            color: #d4d4d4;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 2rem;
+        }
+
+        .url-input {
+            width: 100%;
+            padding: 1rem;
+            border: 2px solid #3e3e42;
+            border-radius: 4px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .url-input:focus {
+            outline: none;
+            border-color: #569cd6;
+            box-shadow: 0 0 0 2px rgba(86, 156, 214, 0.2);
+        }
+
+        .url-input::placeholder {
+            color: #5c6370;
+        }
+
+        .submit-btn {
+            background: #0e639c;
+            color: white;
+            border: 1px solid #1177bb;
+            border-radius: 4px;
+            padding: 1rem 2rem;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s ease, border-color 0.2s ease;
+        }
+
+        .submit-btn:hover {
+            background: #1177bb;
+            border-color: #1e88e5;
+        }
+
+        .submit-btn:disabled {
+            background: #5c6370;
+            border-color: #5c6370;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            display: none;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 3px solid #3e3e42;
+            border-top: 3px solid #569cd6;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .result {
+            background: #252526;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            text-align: left;
+            display: none;
+        }
+
+        .result.active {
+            display: block;
+        }
+
+        .result.success {
+            background: #1e3a1e;
+            border-color: #4caf50;
+        }
+
+        .result h3 {
+            color: #569cd6;
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+        }
+
+        .result.success h3 {
+            color: #4caf50;
+        }
+
+        .result-content {
+            color: #9cdcfe;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
+        .download-btn {
+            background: #4caf50;
+            color: white;
+            border: 1px solid #45a049;
+            border-radius: 4px;
+            padding: 0.8rem 1.5rem;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            transition: background-color 0.2s ease;
+        }
+
+        .download-btn:hover {
+            background: #45a049;
+            text-decoration: none;
+            color: white;
+        }
+
+        .debug-box {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            background: #252526;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            text-align: left;
+        }
+
+        .debug-box h3 {
+            color: #569cd6;
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+        }
+
+        #debugContent {
+            color: #9cdcfe;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 0.9rem;
+            line-height: 1.4;
+            max-height: 300px;
+            overflow-y: auto;
+            background: #1e1e1e;
+            padding: 1rem;
+            border-radius: 4px;
+            border: 1px solid #3e3e42;
+        }
+
+        #debugContent::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        #debugContent::-webkit-scrollbar-track {
+            background: #1e1e1e;
+            border-radius: 4px;
+        }
+
+        #debugContent::-webkit-scrollbar-thumb {
+            background: #3e3e42;
+            border-radius: 4px;
+        }
+
+        #debugContent::-webkit-scrollbar-thumb:hover {
+            background: #5c6370;
+        }
+
+        .debug-line {
+            margin: 0.2rem 0;
+            padding: 0.2rem 0;
+        }
+
+        .debug-line.info {
+            color: #569cd6;
+        }
+
+        .debug-line.success {
+            color: #4caf50;
+        }
+
+        .debug-line.warning {
+            color: #ff9800;
+        }
+
+        .debug-line.error {
+            color: #f44336;
+        }
+
+        .footer-links {
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 1px solid #3e3e42;
+        }
+
+        .footer-links h3 {
+            color: #9cdcfe;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .link-grid {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .footer-link {
+            display: inline-block;
+            padding: 0.8rem 1.5rem;
+            background: #0e639c;
+            color: white;
+            text-decoration: none;
+            border: 1px solid #1177bb;
+            border-radius: 4px;
+            font-weight: 600;
+            transition: background-color 0.2s ease, border-color 0.2s ease;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        }
+
+        .footer-link:hover {
+            background: #1177bb;
+            border-color: #1e88e5;
+            color: white;
+            text-decoration: none;
+        }
+
+        .main-footer {
+            text-align: center;
+            padding: 2rem 1rem;
+            color: #9cdcfe;
+            background: #1e1e1e;
+            border-top: 1px solid #3e3e42;
+            margin-top: 2rem;
+        }
+
+        .main-footer p {
+            opacity: 0.8;
+            margin: 0;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        }
+
+        .main-footer a {
+            color: #569cd6;
+            text-decoration: none;
+        }
+
+        .main-footer a:hover {
+            text-decoration: underline;
+            color: #9cdcfe;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 2rem 1.5rem;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .link-grid {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .footer-link {
+                width: 100%;
+                max-width: 300px;
+            }
+        }
+
+        /* Search Results */
+        .search-results {
+            background: var(--bg-darker);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: var(--space-xl);
+            box-shadow: 0 4px 12px var(--shadow);
+            margin-top: var(--space-xl);
+            text-align: left;
+        }
+
+        .search-results h3 {
+            color: var(--blue);
+            margin-bottom: var(--space-lg);
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            font-size: 1.5rem;
+        }
+
+        .search-summary {
+            background: var(--bg-lighter);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: var(--space-md);
+            margin-bottom: var(--space-lg);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: var(--space-sm);
+        }
+
+        .search-summary .total-results {
+            color: var(--green);
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .search-summary .pages-info {
+            color: var(--fg-dim);
+            font-size: 0.9rem;
+        }
+
+        .results-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-lg);
+            flex-wrap: wrap;
+            gap: var(--space-md);
+        }
+
+        .sort-controls {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+        }
+
+        .sort-controls label {
+            color: var(--fg);
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .sort-select {
+            background: var(--bg-lighter);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--fg-bright);
+            padding: var(--space-sm) var(--space-md);
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .sort-select:focus {
+            border-color: var(--blue);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(97, 175, 239, 0.3);
+        }
+
+        .pagination-controls {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+        }
+
+        .pagination-btn {
+            background: var(--bg-lighter);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--fg);
+            padding: var(--space-sm) var(--space-md);
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: var(--space-xs);
+        }
+
+        .pagination-btn:hover:not(:disabled) {
+            background: var(--bg);
+            border-color: var(--blue);
+            color: var(--blue);
+        }
+
+        .pagination-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .pagination-info {
+            color: var(--fg-dim);
+            font-size: 0.9rem;
+            margin: 0 var(--space-sm);
+        }
+
+        .artists-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-md);
+        }
+
+        .artist-group {
+            background: var(--bg-lighter);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            transition: var(--transition);
+        }
+
+        .artist-group.expanded {
+            border-color: var(--blue);
+            box-shadow: 0 0 0 2px rgba(97, 175, 239, 0.3);
+        }
+
+        .artist-header {
+            background: var(--bg);
+            border-bottom: 1px solid var(--border);
+            padding: var(--space-md) var(--space-lg);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: var(--transition);
+        }
+
+        .artist-header:hover {
+            background: var(--bg-lighter);
+        }
+
+        .artist-header.expanded {
+            background: var(--bg-lighter);
+            border-bottom-color: var(--blue);
+        }
+
+        .artist-info {
+            display: flex;
+            align-items: center;
+            gap: var(--space-md);
+        }
+
+        .artist-name {
+            color: var(--blue);
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .artist-stats {
+            display: flex;
+            gap: var(--space-md);
+            font-size: 0.9rem;
+            color: var(--fg-dim);
+        }
+
+        .artist-stat {
+            display: flex;
+            align-items: center;
+            gap: var(--space-xs);
+        }
+
+        .expand-icon {
+            color: var(--fg-dim);
+            transition: var(--transition);
+            font-size: 1.2rem;
+        }
+
+        .artist-header.expanded .expand-icon {
+            transform: rotate(180deg);
+            color: var(--blue);
+        }
+
+        .songs-list {
+            display: none;
+            padding: var(--space-md);
+            background: var(--bg-darker);
+        }
+
+        .songs-list.expanded {
+            display: block;
+        }
+
+        .song-group {
+            margin-bottom: var(--space-lg);
+        }
+
+        .song-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .song-header {
+            color: var(--cyan);
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: var(--space-sm);
+            padding-bottom: var(--space-xs);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+        }
+
+        .song-tabs {
+            display: grid;
+            gap: var(--space-sm);
+            margin-left: var(--space-lg);
+        }
+
+        .tab-item {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: var(--space-sm) var(--space-md);
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .tab-item:hover {
+            background: var(--bg-lighter);
+            border-color: var(--green);
+            box-shadow: 0 0 0 2px rgba(152, 195, 121, 0.3);
+        }
+
+        .tab-info {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-xs);
+        }
+
+        .tab-type {
+            color: var(--yellow);
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .tab-url {
+            color: var(--fg-dim);
+            font-size: 0.8rem;
+            font-family: var(--font-mono);
+        }
+
+        .tab-actions {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+        }
+
+        .download-tab-btn {
+            background: var(--green);
+            color: var(--fg-bright);
+            border: none;
+            border-radius: var(--radius-sm);
+            padding: var(--space-xs) var(--space-sm);
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 600;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: var(--space-xs);
+        }
+
+        .download-tab-btn:hover {
+            background: #7aa65f;
+            box-shadow: 0 2px 4px var(--shadow);
+        }
+
+        .no-results {
+            text-align: center;
+            color: var(--fg-dim);
+            padding: var(--space-2xl);
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <pre class="ascii-art">  ███████╗ ██████╗██╗  ██╗ ██████╗ ██╗  ██╗██╗███████╗████████╗
+  ██╔════╝██╔════╝██║  ██║██╔═══██╗██║  ██║██║██╔════╝╚══██╔══╝
+  █████╗  ██║     ███████║██║   ██║███████║██║███████╗   ██║   
+  ██╔══╝  ██║     ██╔══██║██║   ██║██╔══██║██║╚════██║   ██║   
+  ███████╗╚██████╗██║  ██║╚██████╔╝██║  ██║██║███████║   ██║   
+  ╚══════╝ ╚═════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝╚═╝╚══════╝   ╚═╝</pre>
+            <p class="tip">💡 Tip: Enter a link for a file from ultimate-guitar.com to download</p>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="download">Direct Download</button>
+            <button class="tab-btn" data-tab="search">Search & Download</button>
+        </div>
+
+        <form id="downloadForm" class="tab-content active">
+            <div class="form-group">
+                <input 
+                    type="url" 
+                    id="urlInput" 
+                    class="url-input" 
+                    placeholder="Enter Ultimate Guitar URL (e.g., https://tabs.ultimate-guitar.com/tab/artist/song)"
+                    required
+                >
+                <button type="submit" class="submit-btn" id="submitBtn">
+                    Download
+                </button>
+            </div>
+        </form>
+
+        <form id="searchForm" class="tab-content">
+            <div class="form-group">
+                <input 
+                    type="text" 
+                    id="searchInput" 
+                    class="url-input" 
+                    placeholder="Search for tabs (e.g., 'metallica one', 'pink floyd wish you were here')"
+                    required
+                >
+                <button type="submit" class="submit-btn" id="searchBtn">
+                    Search
+                </button>
+            </div>
+        </form>
+
+        <div id="searchResults" class="search-results" style="display: none;">
+            <h3>🔍 Search Results</h3>
+            <div class="search-summary">
+                <span class="total-results" id="totalResults">0 results found</span>
+                <span class="pages-info" id="pagesInfo">0 pages searched</span>
+            </div>
+            <div class="results-controls">
+                <div class="sort-controls">
+                    <label for="sortSelect">Sort by:</label>
+                    <select id="sortSelect" class="sort-select">
+                        <option value="artist">Artist Name</option>
+                        <option value="song">Song Name</option>
+                        <option value="type">Tab Type</option>
+                        <option value="count">Tab Count</option>
+                    </select>
+                </div>
+                <div class="pagination-controls">
+                    <button id="prevPage" class="pagination-btn" disabled>
+                        ← Previous
+                    </button>
+                    <span class="pagination-info" id="paginationInfo">Page 1 of 1</span>
+                    <button id="nextPage" class="pagination-btn" disabled>
+                        Next →
+                    </button>
+                </div>
+            </div>
+            <div id="artistsList" class="artists-list"></div>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Processing your request...</p>
+        </div>
+
+        <div class="result" id="result">
+            <h3 id="resultTitle"></h3>
+            <div id="resultContent"></div>
+        </div>
+
+        <div class="debug-box">
+            <h3>🔍 Debug Information</h3>
+            <div id="debugContent">
+                <div class="debug-line info">Ready to process requests...</div>
+            </div>
+        </div>
+
+        <div class="footer-links">
+            <h3>Resources</h3>
+            <div class="link-grid">
+                <a href="/echoHEIST.sh" class="footer-link" download>
+                    📥 Download echoHEIST.sh
+                </a>
+                <a href="https://github.com/DTRHnet/Shell-Scripts/blob/main/echoHEIST.sh" class="footer-link" target="_blank" rel="noopener">
+                    🐙 View on GitHub
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <footer class="main-footer">
+        <p>A DTRHnet Project &lt; <a href="mailto:admin@dtrh.net">admin [AT] dtrh [DOT] net</a>&gt;</p>
+    </footer>
+
+    <script>
+        // DOM Elements
+        const downloadForm = document.getElementById('downloadForm');
+        const searchForm = document.getElementById('searchForm');
+        const urlInput = document.getElementById('urlInput');
+        const searchInput = document.getElementById('searchInput');
+        const submitBtn = document.getElementById('submitBtn');
+        const searchBtn = document.getElementById('searchBtn');
+        const loading = document.getElementById('loading');
+        const result = document.getElementById('result');
+        const resultTitle = document.getElementById('resultTitle');
+        const resultContent = document.getElementById('resultContent');
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        const tabContents = document.querySelectorAll('.tab-content');
+        const debugContent = document.getElementById('debugContent');
+
+        // Utility Functions
+        function addDebugLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logLine = document.createElement('div');
+            logLine.className = `debug-line ${type}`;
+            logLine.textContent = `[${timestamp}] ${message}`;
+            debugContent.appendChild(logLine);
+            debugContent.scrollTop = debugContent.scrollHeight;
+        }
+
+        function showLoading() {
+            loading.classList.add('active');
+            result.classList.remove('active');
+        }
+
+        function hideLoading() {
+            loading.classList.remove('active');
+        }
+
+        function showResult(title, content, isSuccess = false) {
+            resultTitle.textContent = title;
+            resultContent.innerHTML = content;
+            result.className = `result ${isSuccess ? 'success' : ''}`;
+            result.classList.add('active');
+            hideLoading();
+        }
+
+        function clearDebug() {
+            debugContent.innerHTML = '<div class="debug-line info">Debug information cleared. Ready for new operation.</div>';
+        }
+
+        // Tab switching
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tab = btn.dataset.tab;
+                
+                // Update active tab button
+                tabBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                // Update active tab content
+                tabContents.forEach(content => content.classList.remove('active'));
+                document.getElementById(tab === 'download' ? 'downloadForm' : 'searchForm').classList.add('active');
+            });
+        });
+
+        // Download form handler
+        downloadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const url = urlInput.value.trim();
+            if (!url) return;
+            
+            clearDebug();
+            addDebugLog('Starting download process...', 'info');
+            addDebugLog(`Target URL: ${url}`, 'info');
+            addDebugLog('Sending request to server...', 'info');
+            
+            await downloadFromUrl(url);
+        });
+
+        // Search form handler
+        searchForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const query = searchInput.value.trim();
+            if (!query) return;
+            
+            clearDebug();
+            addDebugLog(`Starting search for: "${query}"`, 'info');
+            await performSearch(query);
+        });
+
+        // Download function
+        async function downloadFromUrl(url) {
+            showLoading();
+            
+            try {
+                const response = await fetch('/.netlify/functions/echoheist', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ url })
+                });
+
+                const contentType = response.headers.get('Content-Type') || '';
+                addDebugLog(`Server responded with status ${response.status} (${contentType})`, 'info');
+
+                // If the function returns a raw file stream
+                if (response.ok && contentType.includes('application/octet-stream')) {
+                    const disposition = response.headers.get('Content-Disposition') || '';
+                    const match = disposition.match(/filename="?([^";]+)"?/i);
+                    const filename = match ? match[1] : `download_${Date.now()}.gpx`;
+
+                    const blob = await response.blob();
+                    const sizeKb = (blob.size / 1024).toFixed(2);
+                    const objectUrl = URL.createObjectURL(blob);
+
+                    addDebugLog(`Downloaded ${filename} (${sizeKb} KB)`, 'success');
+
+                    // Render success card with download button
+                    const content = `
+                        <div style="display:flex;flex-direction:column;gap:12px;">
+                            <div><strong>URL:</strong> ${escapeHtml(url)}</div>
+                            <div><strong>Filename:</strong> ${escapeHtml(filename)}</div>
+                            <div><strong>Size:</strong> ${sizeKb} KB</div>
+                            <div><strong>Duration:</strong> Unknown</div>
+                            <div style="margin-top:8px;">
+                                <a href="${objectUrl}" download="${escapeAttr(filename)}" class="download-btn">
+                                    <span>⬇️</span> Download File
+                                </a>
+                            </div>
+                            <div style="margin-top:8px;font-size:0.8rem;color:#5c6370;">
+                                <span>▶️</span> <span>🔍</span> Verbose Output
+                            </div>
+                    </div>
+                    `;
+                    showResult('Download Successful!', content, true);
+                    return;
+                }
+
+                // Otherwise assume JSON (error or metadata)
+                let data;
+                try {
+                    data = await response.json();
+                } catch (_) {
+                    data = { error: 'Unexpected response from server' };
+                }
+
+                if (response.ok && data && data.base64) {
+                    // Handle optional base64 JSON format if provided
+                    const binary = atob(data.base64);
+                    const bytes = new Uint8Array(binary.length);
+                    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                    const blob = new Blob([bytes.buffer], { type: 'application/octet-stream' });
+                    const filename = data.filename || `download_${Date.now()}.gpx`;
+                    const objectUrl = URL.createObjectURL(blob);
+
+                    addDebugLog(`Downloaded ${filename} (${(blob.size/1024).toFixed(2)} KB)`, 'success');
+
+                    const content = `
+                        <div style="display:flex;flex-direction:column;gap:12px;">
+                            <div><strong>URL:</strong> ${escapeHtml(url)}</div>
+                            <div><strong>Filename:</strong> ${escapeHtml(filename)}</div>
+                            <div><strong>Size:</strong> ${(blob.size/1024).toFixed(2)} KB</div>
+                            <div><strong>Duration:</strong> Unknown</div>
+                            <div style="margin-top:8px;">
+                                <a href="${objectUrl}" download="${escapeAttr(filename)}" class="download-btn">
+                                    <span>⬇️</span> Download File
+                                </a>
+                            </div>
+                            <div style="margin-top:8px;font-size:0.8rem;color:#5c6370;">
+                                <span>▶️</span> <span>🔍</span> Verbose Output
+                            </div>
+                        </div>
+                    `;
+                    showResult('Download Successful!', content, true);
+                } else {
+                    const message = (data && (data.error || data.message)) || 'Unknown error';
+                    addDebugLog(`Download failed: ${message}`, 'error');
+                    showResult('Download Failed', `<div style="color: #f44336;">${escapeHtml(message)}</div>`);
+                }
+            } catch (error) {
+                addDebugLog(`Network error: ${error.message}`, 'error');
+                showResult('Network Error', `<div style="color: #f44336;">Failed to connect to server: ${escapeHtml(error.message)}</div>`);
+            }
+        }
+
+        // Search function
+        async function performSearch(query) {
+            showLoading();
+            
+            try {
+                const response = await fetch(`/.netlify/functions/search?query=${encodeURIComponent(query)}&limit=20`);
+                const data = await response.json();
+                
+                if (response.ok && data.results) {
+                    addDebugLog(`Found ${data.results.length} results`, 'success');
+                    showSearchResults(data.results);
+                } else {
+                    addDebugLog(`Search failed: ${data.error || 'No results found'}`, 'warning');
+                    showResult('Search Failed', `<div style="color: #ff9800;">${escapeHtml(data.error || 'No results found')}</div>`);
+                }
+            } catch (error) {
+                addDebugLog(`Search error: ${error.message}`, 'error');
+                showResult('Search Error', `<div style="color: #f44336;">Failed to search: ${escapeHtml(error.message)}</div>`);
+            }
+        }
+
+        function showSearchResults(results) {
+            if (results.length === 0) {
+                showResult('No Results', '<div style="color: #ff9800;">No results found. Try a different search term.</div>');
+                return;
+            }
+
+            const resultsHtml = results.map((item, index) => `
+                <div style="padding: 1rem; margin-bottom: 0.5rem; background: #1e1e1e; border: 1px solid #3e3e42; border-radius: 4px; cursor: pointer; transition: background-color 0.2s ease;" onclick="downloadFromUrl('${escapeAttr(item.url)}')">
+                    <h4 style="color: #569cd6; margin: 0 0 0.5rem 0; font-size: 1rem;">${escapeHtml(item.title)}</h4>
+                    <p style="color: #9cdcfe; margin: 0 0 0.5rem 0;">${escapeHtml(item.artist)}</p>
+                    <div style="display: flex; gap: 1rem; font-size: 0.8rem; color: #5c6370;">
+                        <span style="color: #4caf50;">${escapeHtml(item.type)}</span>
+                        <span style="color: #ff9800;">⭐ ${item.rating || 'N/A'}</span>
+                        <span>👁️ ${item.views || 'N/A'} views</span>
+                    </div>
+                </div>
+            `).join('');
+
+            showResult('Search Results', resultsHtml);
+        }
+
+        // Initialize
+        addDebugLog('EchoHEIST Web Interface initialized', 'success');
+        addDebugLog('Ready to download Ultimate Guitar tabs', 'info');
+
+        // Helpers to safely inject text
+        function escapeHtml(text) {
+            return String(text)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+        function escapeAttr(text) {
+            return escapeHtml(text).replace(/\s+/g, '_');
+        }
+    </script>
+</body>
+</html>
