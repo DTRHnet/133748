@@ -2,9 +2,62 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EchoHEIST - Audio Downloader</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>EchoHEIST - Ultimate Guitar Tab Downloader</title>
     <style>
+        /* One Dark Theme Colors - Based on https://github.com/joshdick/onedark.vim */
+        :root {
+            /* One Dark Colors */
+            --bg: #282c34;
+            --bg-darker: #21252b;
+            --bg-lighter: #2c313c;
+            --fg: #abb2bf;
+            --fg-bright: #ffffff;
+            --fg-dim: #5c6370;
+            
+            /* Syntax Colors */
+            --red: #e06c75;
+            --green: #98c379;
+            --yellow: #e5c07b;
+            --blue: #61afef;
+            --purple: #c678dd;
+            --cyan: #56b6c2;
+            --orange: #d19a66;
+            
+            /* UI Colors */
+            --border: #3e4451;
+            --border-light: #4a5568;
+            --shadow: rgba(0, 0, 0, 0.3);
+            --shadow-light: rgba(0, 0, 0, 0.1);
+            
+            /* Status Colors */
+            --success: var(--green);
+            --warning: var(--yellow);
+            --error: var(--red);
+            --info: var(--blue);
+            
+            /* Typography */
+            --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace;
+            --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            
+            /* Spacing */
+            --space-xs: 0.25rem;
+            --space-sm: 0.5rem;
+            --space-md: 1rem;
+            --space-lg: 1.5rem;
+            --space-xl: 2rem;
+            --space-2xl: 3rem;
+            
+            /* Border Radius */
+            --radius-sm: 4px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            
+            /* Transitions */
+            --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Reset and Base Styles */
         * {
             margin: 0;
             padding: 0;
@@ -12,75 +65,151 @@
         }
 
         body {
-            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-family: var(--font-sans);
+            background: var(--bg);
+            color: var(--fg);
+            line-height: 1.6;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
-            background: #1e1e1e;
-            color: #d4d4d4;
             min-height: 100vh;
-            margin: 0;
-            padding: 0;
-            overflow-y: auto;
+            overflow-x: hidden;
         }
 
+        /* Container */
         .container {
-            background: #2d2d30;
-            border: 1px solid #3e3e42;
-            border-radius: 8px;
-            padding: 2rem;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-            max-width: 800px;
-            width: 90%;
-            margin: 2rem auto;
-            text-align: center;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: var(--space-lg);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
 
+        /* Header */
         .header {
-            margin-bottom: 2rem;
+            text-align: center;
+            margin-bottom: var(--space-2xl);
+            padding: var(--space-xl) 0;
         }
 
         .ascii-art {
-            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-            font-size: 0.8rem;
-            color: #569cd6;
-            margin: 0 0 1rem 0;
-            text-shadow: 0 0 10px rgba(86, 156, 214, 0.3);
-            line-height: 1;
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            color: var(--blue);
+            margin-bottom: var(--space-lg);
+            text-shadow: 0 0 20px rgba(97, 175, 239, 0.3);
+            line-height: 1.2;
+            white-space: pre;
+            overflow-x: auto;
         }
 
-        .tip {
-            color: #9cdcfe;
-            font-size: 1rem;
-            margin: 0;
-            font-style: italic;
+        .tagline {
+            color: var(--fg-dim);
+            font-size: 1.1rem;
+            font-weight: 300;
+            margin-top: var(--space-md);
         }
 
+        /* Tabs */
         .tabs {
             display: flex;
-            margin-bottom: 2rem;
-            border-bottom: 1px solid #3e3e42;
+            background: var(--bg-darker);
+            border-radius: var(--radius-md);
+            padding: var(--space-xs);
+            margin-bottom: var(--space-xl);
+            border: 1px solid var(--border);
         }
 
         .tab-btn {
+            flex: 1;
             background: transparent;
-            color: #9cdcfe;
+            color: var(--fg-dim);
             border: none;
-            padding: 1rem 2rem;
+            padding: var(--space-md) var(--space-lg);
             cursor: pointer;
-            border-bottom: 2px solid transparent;
-            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-            transition: all 0.2s ease;
+            border-radius: var(--radius-sm);
+            font-family: var(--font-sans);
+            font-weight: 500;
+            transition: var(--transition);
+            position: relative;
         }
 
         .tab-btn.active {
-            color: #569cd6;
-            border-bottom-color: #569cd6;
+            background: var(--bg-lighter);
+            color: var(--blue);
+            box-shadow: 0 2px 8px var(--shadow-light);
         }
 
-        .tab-btn:hover {
-            color: #d4d4d4;
+        .tab-btn:hover:not(.active) {
+            color: var(--fg);
+            background: var(--bg-lighter);
         }
 
+        /* Forms */
+        .form-group {
+            margin-bottom: var(--space-xl);
+        }
+
+        .input-group {
+            display: flex;
+            gap: var(--space-sm);
+            margin-bottom: var(--space-lg);
+        }
+
+        .url-input, .search-input {
+            flex: 1;
+            padding: var(--space-md) var(--space-lg);
+            background: var(--bg-darker);
+            border: 2px solid var(--border);
+            border-radius: var(--radius-md);
+            color: var(--fg);
+            font-family: var(--font-sans);
+            font-size: 1rem;
+            transition: var(--transition);
+        }
+
+        .url-input:focus, .search-input:focus {
+            outline: none;
+            border-color: var(--blue);
+            box-shadow: 0 0 0 3px rgba(97, 175, 239, 0.1);
+        }
+
+        .url-input::placeholder, .search-input::placeholder {
+            color: var(--fg-dim);
+        }
+
+        .submit-btn, .search-btn {
+            padding: var(--space-md) var(--space-xl);
+            background: var(--blue);
+            color: var(--bg);
+            border: none;
+            border-radius: var(--radius-md);
+            font-family: var(--font-sans);
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: var(--transition);
+            white-space: nowrap;
+        }
+
+        .submit-btn:hover, .search-btn:hover {
+            background: var(--cyan);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(97, 175, 239, 0.3);
+        }
+
+        .submit-btn:active, .search-btn:active {
+            transform: translateY(0);
+        }
+
+        .submit-btn:disabled, .search-btn:disabled {
+            background: var(--fg-dim);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Tab Content */
         .tab-content {
             display: none;
         }
@@ -89,121 +218,100 @@
             display: block;
         }
 
-        .form-group {
-            margin-bottom: 2rem;
-        }
-
-        .url-input {
-            width: 100%;
-            padding: 1rem;
-            border: 2px solid #3e3e42;
-            border-radius: 4px;
-            font-size: 1rem;
-            background: #1e1e1e;
-            color: #d4d4d4;
-            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-            transition: border-color 0.3s ease;
-            margin-bottom: 1rem;
-        }
-
-        .url-input:focus {
-            outline: none;
-            border-color: #569cd6;
-            box-shadow: 0 0 0 2px rgba(86, 156, 214, 0.2);
-        }
-
-        .url-input:disabled {
-            background-color: #2d2d30;
-            cursor: not-allowed;
-            opacity: 0.6;
-        }
-
-        .submit-btn {
-            background: #0e639c;
-            color: #ffffff;
-            border: 1px solid #1177bb;
-            padding: 1rem 2rem;
-            border-radius: 4px;
-            font-size: 1.1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background-color 0.2s ease, border-color 0.2s ease;
-            width: 100%;
-            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-        }
-
-        .submit-btn:hover:not(:disabled) {
-            background: #1177bb;
-            border-color: #1e88e5;
-        }
-
-        .submit-btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            background: #3e3e42;
-            border-color: #3e3e42;
-        }
-
-        .result {
-            margin-top: 2rem;
-            padding: 1.5rem;
-            border-radius: 4px;
+        /* Search Results */
+        .search-results {
+            background: var(--bg-darker);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: var(--space-lg);
+            margin-bottom: var(--space-xl);
             display: none;
-            border: 1px solid;
         }
 
-        .result.success {
-            background: #1e3a1e;
-            border-color: #4caf50;
-            color: #4caf50;
+        .search-results.active {
+            display: block;
         }
 
-        .result.error {
-            background: #3a1e1e;
-            border-color: #f44336;
-            color: #f44336;
+        .search-results h3 {
+            color: var(--blue);
+            margin-bottom: var(--space-lg);
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
         }
 
-        .result h3 {
-            margin-bottom: 1rem;
+        .results-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-sm);
         }
 
-        .result p {
-            margin-bottom: 0.5rem;
+        .result-item {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: var(--space-md);
+            cursor: pointer;
+            transition: var(--transition);
+            position: relative;
         }
 
-        .download-btn {
-            background: #0e7c0e;
-            color: white;
-            border: 1px solid #1b8e1b;
-            padding: 0.8rem 1.5rem;
-            border-radius: 4px;
+        .result-item:hover {
+            background: var(--bg-lighter);
+            border-color: var(--border-light);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px var(--shadow-light);
+        }
+
+        .result-item h4 {
+            color: var(--blue);
+            margin-bottom: var(--space-xs);
             font-size: 1rem;
             font-weight: 600;
-            cursor: pointer;
-            transition: background-color 0.2s ease, border-color 0.2s ease;
-            margin-top: 1rem;
-            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
         }
 
-        .download-btn:hover {
-            background: #1b8e1b;
-            border-color: #2e8b2e;
+        .result-item p {
+            color: var(--fg-dim);
+            font-size: 0.9rem;
+            margin-bottom: var(--space-xs);
         }
 
+        .result-meta {
+            display: flex;
+            gap: var(--space-md);
+            font-size: 0.8rem;
+            color: var(--fg-dim);
+        }
+
+        .result-rating {
+            color: var(--yellow);
+        }
+
+        .result-type {
+            color: var(--green);
+            font-weight: 500;
+        }
+
+        /* Loading */
         .loading {
+            text-align: center;
+            padding: var(--space-2xl);
             display: none;
-            margin-top: 1rem;
+        }
+
+        .loading.active {
+            display: block;
         }
 
         .spinner {
-            border: 3px solid #3e3e42;
-            border-top: 3px solid #569cd6;
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border);
+            border-top: 3px solid var(--blue);
             border-radius: 50%;
-            width: 30px;
-            height: 30px;
             animation: spin 1s linear infinite;
-            margin: 0 auto;
+            margin: 0 auto var(--space-lg);
         }
 
         @keyframes spin {
@@ -211,274 +319,249 @@
             100% { transform: rotate(360deg); }
         }
 
+        .loading p {
+            color: var(--fg-dim);
+            font-size: 1.1rem;
+        }
+
+        /* Results */
+        .result {
+            background: var(--bg-darker);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: var(--space-lg);
+            margin-bottom: var(--space-xl);
+            display: none;
+        }
+
+        .result.active {
+            display: block;
+        }
+
+        .result h3 {
+            color: var(--green);
+            margin-bottom: var(--space-md);
+            font-size: 1.2rem;
+        }
+
+        .result-content {
+            color: var(--fg);
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        /* Debug Box */
         .debug-box {
-            margin-top: 2rem;
-            padding: 1.5rem;
-            background: #252526;
-            border: 1px solid #3e3e42;
-            border-radius: 4px;
-            text-align: left;
+            background: var(--bg-darker);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: var(--space-lg);
+            margin-bottom: var(--space-xl);
         }
 
         .debug-box h3 {
-            color: #569cd6;
-            margin-bottom: 1rem;
+            color: var(--purple);
+            margin-bottom: var(--space-md);
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
         }
 
-        #debugContent {
-            color: #9cdcfe;
-            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-            font-size: 0.9rem;
+        .debug-content {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: var(--space-md);
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
             line-height: 1.4;
-            max-height: 400px;
-            overflow-y: auto;
-            background: #1e1e1e;
-            padding: 1rem;
-            border-radius: 4px;
-            border: 1px solid #3e3e42;
-        }
-
-        #debugContent p {
-            margin: 0;
-        }
-
-        .debug-log-line {
-            margin: 0.2rem 0;
-            padding: 0.2rem 0;
-        }
-
-        .debug-log-line.info {
-            color: #569cd6;
-        }
-
-        .debug-log-line.success {
-            color: #4caf50;
-        }
-
-        .debug-log-line.warning {
-            color: #ff9800;
-        }
-
-        .debug-log-line.error {
-            color: #f44336;
-        }
-
-        /* Search Results */
-        .search-results {
-            margin-top: 2rem;
-            padding: 1.5rem;
-            background: #252526;
-            border: 1px solid #3e3e42;
-            border-radius: 4px;
-        }
-
-        .search-results h3 {
-            color: #569cd6;
-            margin-bottom: 1rem;
-        }
-
-        .result-item {
-            padding: 1rem;
-            margin-bottom: 0.5rem;
-            background: #1e1e1e;
-            border: 1px solid #3e3e42;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background-color 0.2s ease;
-        }
-
-        .result-item:hover {
-            background: #2d2d30;
-        }
-
-        .result-item h4 {
-            color: #569cd6;
-            margin: 0 0 0.5rem 0;
-            font-size: 1rem;
-        }
-
-        .result-item p {
-            color: #9cdcfe;
-            margin: 0;
-            font-size: 0.9rem;
-        }
-
-        .result-item .meta {
-            color: #6a9955;
-            font-size: 0.8rem;
-            margin-top: 0.5rem;
-        }
-
-        /* Download Progress */
-        .download-progress {
-            margin-top: 1rem;
-            padding: 1rem;
-            background: #252526;
-            border: 1px solid #3e3e42;
-            border-radius: 4px;
-        }
-
-        .progress-bar {
-            width: 100%;
-            height: 20px;
-            background: #1e1e1e;
-            border: 1px solid #3e3e42;
-            border-radius: 4px;
-            overflow: hidden;
-            margin-bottom: 0.5rem;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #0e639c, #1177bb);
-            transition: width 0.3s ease;
-            border-radius: 2px;
-        }
-
-        .progress-text {
-            color: #9cdcfe;
-            font-size: 0.9rem;
-            margin: 0;
-            text-align: center;
-        }
-
-        /* Verbose Output */
-        .verbose-output {
-            margin-top: 1rem;
-            border: 1px solid #3e3e42;
-            border-radius: 4px;
-            background: #1e1e1e;
-        }
-
-        .verbose-output summary {
-            padding: 0.5rem 1rem;
-            background: #252526;
-            color: #569cd6;
-            cursor: pointer;
-            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-            font-size: 0.9rem;
-        }
-
-        .verbose-output summary:hover {
-            background: #2d2d30;
-        }
-
-        .debug-log {
-            padding: 1rem;
-            background: #1e1e1e;
-            color: #9cdcfe;
-            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-            font-size: 0.8rem;
-            white-space: pre-wrap;
-            word-wrap: break-word;
             max-height: 300px;
             overflow-y: auto;
-            margin: 0;
-            border: none;
+            color: var(--fg);
         }
 
-        /* Footer links */
+        .debug-content::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .debug-content::-webkit-scrollbar-track {
+            background: var(--bg-darker);
+            border-radius: var(--radius-sm);
+        }
+
+        .debug-content::-webkit-scrollbar-thumb {
+            background: var(--border-light);
+            border-radius: var(--radius-sm);
+        }
+
+        .debug-content::-webkit-scrollbar-thumb:hover {
+            background: var(--fg-dim);
+        }
+
+        .debug-line {
+            margin: var(--space-xs) 0;
+            padding: var(--space-xs) 0;
+        }
+
+        .debug-line.info { color: var(--blue); }
+        .debug-line.success { color: var(--green); }
+        .debug-line.warning { color: var(--yellow); }
+        .debug-line.error { color: var(--red); }
+
+        /* Footer */
         .footer-links {
-            margin-top: 2rem;
-            padding: 1.5rem;
-            background: #252526;
-            border: 1px solid #3e3e42;
-            border-radius: 4px;
-            text-align: center;
+            margin-top: auto;
+            padding-top: var(--space-xl);
         }
 
         .footer-links h3 {
-            color: #569cd6;
-            margin-bottom: 1rem;
-            font-size: 1.3rem;
+            color: var(--fg-dim);
+            margin-bottom: var(--space-lg);
+            text-align: center;
+            font-size: 1.1rem;
         }
 
         .link-grid {
             display: flex;
-            gap: 1rem;
+            gap: var(--space-md);
             justify-content: center;
             flex-wrap: wrap;
         }
 
         .footer-link {
-            display: inline-block;
-            padding: 0.8rem 1.5rem;
-            background: #0e639c;
-            color: white;
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-sm);
+            padding: var(--space-md) var(--space-lg);
+            background: var(--bg-darker);
+            color: var(--fg);
             text-decoration: none;
-            border: 1px solid #1177bb;
-            border-radius: 4px;
-            font-weight: 600;
-            transition: background-color 0.2s ease, border-color 0.2s ease;
-            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            font-weight: 500;
+            transition: var(--transition);
         }
 
         .footer-link:hover {
-            background: #1177bb;
-            border-color: #1e88e5;
-            color: white;
-            text-decoration: none;
+            background: var(--bg-lighter);
+            border-color: var(--blue);
+            color: var(--blue);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px var(--shadow-light);
         }
 
-        /* Main footer */
         .main-footer {
             text-align: center;
-            padding: 2rem 1rem;
-            color: #9cdcfe;
-            background: #1e1e1e;
-            border-top: 1px solid #3e3e42;
-            margin-top: 2rem;
-        }
-
-        .main-footer p {
-            opacity: 0.8;
-            margin: 0;
-            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            padding: var(--space-xl) var(--space-lg);
+            color: var(--fg-dim);
+            background: var(--bg-darker);
+            border-top: 1px solid var(--border);
+            margin-top: var(--space-xl);
         }
 
         .main-footer a {
-            color: #569cd6;
+            color: var(--blue);
             text-decoration: none;
         }
 
         .main-footer a:hover {
+            color: var(--cyan);
             text-decoration: underline;
-            color: #9cdcfe;
         }
 
+        /* Mobile Responsiveness */
         @media (max-width: 768px) {
             .container {
-                padding: 2rem 1.5rem;
+                padding: var(--space-md);
             }
             
-            .header h1 {
-                font-size: 2rem;
+            .ascii-art {
+                font-size: 0.6rem;
+                overflow-x: auto;
             }
-
+            
+            .tabs {
+                flex-direction: column;
+                gap: var(--space-xs);
+            }
+            
+            .tab-btn {
+                text-align: center;
+            }
+            
+            .input-group {
+                flex-direction: column;
+            }
+            
+            .submit-btn, .search-btn {
+                width: 100%;
+            }
+            
             .link-grid {
                 flex-direction: column;
                 align-items: center;
             }
-
+            
             .footer-link {
                 width: 100%;
                 max-width: 300px;
+                justify-content: center;
             }
+            
+            .result-meta {
+                flex-direction: column;
+                gap: var(--space-xs);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: var(--space-sm);
+            }
+            
+            .ascii-art {
+                font-size: 0.5rem;
+            }
+            
+            .header {
+                margin-bottom: var(--space-lg);
+                padding: var(--space-md) 0;
+            }
+        }
+
+        /* Accessibility */
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        /* Focus styles for keyboard navigation */
+        .tab-btn:focus,
+        .url-input:focus,
+        .search-input:focus,
+        .submit-btn:focus,
+        .search-btn:focus,
+        .footer-link:focus {
+            outline: 2px solid var(--blue);
+            outline-offset: 2px;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <pre class="ascii-art">
-  ███████╗ ██████╗██╗  ██╗ ██████╗ ██╗  ██╗██╗███████╗████████╗
+            <pre class="ascii-art">  ███████╗ ██████╗██╗  ██╗ ██████╗ ██╗  ██╗██╗███████╗████████╗
   ██╔════╝██╔════╝██║  ██║██╔═══██╗██║  ██║██║██╔════╝╚══██╔══╝
   █████╗  ██║     ███████║██║   ██║███████║██║███████╗   ██║   
   ██╔══╝  ██║     ██╔══██║██║   ██║██╔══██║██║╚════██║   ██║   
   ███████╗╚██████╗██║  ██║╚██████╔╝██║  ██║██║███████║   ██║   
-  ╚══════╝ ╚═════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝╚═╝╚══════╝   ╚═╝   
-            </pre>
-            <p class="tip">💡 Tip: Enter a link for a file from ultimate-guitar.com to download</p>
+  ╚══════╝ ╚═════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝╚═╝╚══════╝   ╚═╝</pre>
+            <p class="tagline">🎸 Ultimate Guitar Tab Downloader</p>
         </div>
 
         <div class="tabs">
@@ -488,37 +571,41 @@
 
         <form id="downloadForm" class="tab-content active">
             <div class="form-group">
-                <input 
-                    type="url" 
-                    id="urlInput" 
-                    class="url-input" 
-                    placeholder="Enter Ultimate Guitar URL (e.g., https://tabs.ultimate-guitar.com/tab/artist/song)"
-                    required
-                >
-                <button type="submit" class="submit-btn" id="submitBtn">
-                    Download
-                </button>
+                <div class="input-group">
+                    <input 
+                        type="url" 
+                        id="urlInput" 
+                        class="url-input" 
+                        placeholder="Enter Ultimate Guitar URL (e.g., https://tabs.ultimate-guitar.com/tab/artist/song)"
+                        required
+                    >
+                    <button type="submit" class="submit-btn" id="submitBtn">
+                        Download
+                    </button>
+                </div>
             </div>
         </form>
 
         <form id="searchForm" class="tab-content">
             <div class="form-group">
-                <input 
-                    type="text" 
-                    id="searchInput" 
-                    class="url-input" 
-                    placeholder="Search for tabs (e.g., 'metallica one')"
-                    required
-                >
-                <button type="submit" class="submit-btn" id="searchBtn">
-                    Search
-                </button>
+                <div class="input-group">
+                    <input 
+                        type="text" 
+                        id="searchInput" 
+                        class="search-input" 
+                        placeholder="Search for tabs (e.g., 'metallica one', 'pink floyd wish you were here')"
+                        required
+                    >
+                    <button type="submit" class="search-btn" id="searchBtn">
+                        Search
+                    </button>
+                </div>
             </div>
         </form>
 
-        <div id="searchResults" class="search-results" style="display: none;">
-            <h3>Search Results</h3>
-            <div id="resultsList"></div>
+        <div id="searchResults" class="search-results">
+            <h3>🔍 Search Results</h3>
+            <div id="resultsList" class="results-list"></div>
         </div>
 
         <div class="loading" id="loading">
@@ -528,13 +615,13 @@
 
         <div class="result" id="result">
             <h3 id="resultTitle"></h3>
-            <div id="resultContent"></div>
+            <div id="resultContent" class="result-content"></div>
         </div>
 
         <div class="debug-box">
             <h3>🔍 Debug Information</h3>
-            <div id="debugContent">
-                <p>No debug information available yet. Start a download to see detailed logs.</p>
+            <div id="debugContent" class="debug-content">
+                <div class="debug-line info">Ready to process requests...</div>
             </div>
         </div>
 
@@ -556,6 +643,7 @@
     </footer>
 
     <script>
+        // DOM Elements
         const downloadForm = document.getElementById('downloadForm');
         const searchForm = document.getElementById('searchForm');
         const urlInput = document.getElementById('urlInput');
@@ -572,6 +660,68 @@
         const tabContents = document.querySelectorAll('.tab-content');
         const debugContent = document.getElementById('debugContent');
 
+        // Utility Functions
+        function addDebugLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logLine = document.createElement('div');
+            logLine.className = `debug-line ${type}`;
+            logLine.textContent = `[${timestamp}] ${message}`;
+            debugContent.appendChild(logLine);
+            debugContent.scrollTop = debugContent.scrollHeight;
+        }
+
+        function showLoading() {
+            loading.classList.add('active');
+            result.classList.remove('active');
+            searchResults.classList.remove('active');
+        }
+
+        function hideLoading() {
+            loading.classList.remove('active');
+        }
+
+        function showResult(title, content) {
+            resultTitle.textContent = title;
+            resultContent.textContent = content;
+            result.classList.add('active');
+            hideLoading();
+        }
+
+        function showSearchResults(results) {
+            resultsList.innerHTML = '';
+            
+            if (results.length === 0) {
+                resultsList.innerHTML = '<div class="debug-line warning">No results found. Try a different search term.</div>';
+                searchResults.classList.add('active');
+                hideLoading();
+                return;
+            }
+
+            results.forEach((item, index) => {
+                const resultItem = document.createElement('div');
+                resultItem.className = 'result-item';
+                resultItem.innerHTML = `
+                    <h4>${item.title}</h4>
+                    <p>${item.artist}</p>
+                    <div class="result-meta">
+                        <span class="result-type">${item.type}</span>
+                        <span class="result-rating">⭐ ${item.rating || 'N/A'}</span>
+                        <span>👁️ ${item.views || 'N/A'} views</span>
+                    </div>
+                `;
+                
+                resultItem.addEventListener('click', () => {
+                    addDebugLog(`Selected result: ${item.title} by ${item.artist}`, 'info');
+                    downloadFromUrl(item.url);
+                });
+                
+                resultsList.appendChild(resultItem);
+            });
+            
+            searchResults.classList.add('active');
+            hideLoading();
+        }
+
         // Tab switching
         tabBtns.forEach(btn => {
             btn.addEventListener('click', () => {
@@ -587,7 +737,7 @@
                 
                 // Hide search results when switching to download tab
                 if (tab === 'download') {
-                    searchResults.style.display = 'none';
+                    searchResults.classList.remove('active');
                 }
             });
         });
@@ -597,55 +747,10 @@
             e.preventDefault();
             
             const url = urlInput.value.trim();
-            if (!url) {
-                showError('Please enter a URL');
-                return;
-            }
-
-            // Validate URL format
-            try {
-                new URL(url);
-            } catch {
-                showError('Please enter a valid URL');
-                return;
-            }
-
-            setLoading(true);
-            hideResult();
-            clearDebugBox();
-            updateDebugBox('Starting download process...', 'info');
-            updateDebugBox(`Target URL: ${url}`, 'info');
-
-            try {
-                updateDebugBox('Sending request to server...', 'info');
-                const response = await fetch('/api/echoheist', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ url })
-                });
-
-                updateDebugBox(`Server response: ${response.status} ${response.statusText}`, 'info');
-                const data = await response.json();
-
-                if (!response.ok) {
-                    updateDebugBox(`Download failed: ${data.error}`, 'error');
-                    if (data.debug) {
-                        updateDebugBox('Debug information available in result details', 'warning');
-                    }
-                    throw new Error(data.error || 'Failed to process URL');
-                }
-
-                updateDebugBox('Download completed successfully!', 'success');
-                updateDebugBox(`File: ${data.filename} (${data.fileSize})`, 'success');
-                showSuccess(data);
-            } catch (error) {
-                updateDebugBox(`Error: ${error.message}`, 'error');
-                showError(error.message);
-            } finally {
-                setLoading(false);
-            }
+            if (!url) return;
+            
+            addDebugLog(`Starting download for URL: ${url}`, 'info');
+            await downloadFromUrl(url);
         });
 
         // Search form handler
@@ -653,199 +758,66 @@
             e.preventDefault();
             
             const query = searchInput.value.trim();
-            if (!query) {
-                showError('Please enter a search query');
-                return;
-            }
+            if (!query) return;
+            
+            addDebugLog(`Starting search for: "${query}"`, 'info');
+            await performSearch(query);
+        });
 
-            setLoading(true);
-            hideResult();
-            searchResults.style.display = 'none';
-            clearDebugBox();
-            updateDebugBox('Starting search process...', 'info');
-            updateDebugBox(`Search query: ${query}`, 'info');
-
+        // Download function
+        async function downloadFromUrl(url) {
+            showLoading();
+            addDebugLog('Initiating download process...', 'info');
+            
             try {
-                updateDebugBox('Sending search request to server...', 'info');
-                const response = await fetch('/api/search', {
+                const response = await fetch('/.netlify/functions/echoheist', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ query })
+                    body: JSON.stringify({ url: url })
                 });
 
-                updateDebugBox(`Search response: ${response.status} ${response.statusText}`, 'info');
                 const data = await response.json();
-
-                if (!response.ok) {
-                    updateDebugBox(`Search failed: ${data.error}`, 'error');
-                    throw new Error(data.error || 'Search failed');
+                
+                if (response.ok) {
+                    addDebugLog('Download completed successfully!', 'success');
+                    showResult('Download Complete', `File downloaded successfully: ${data.filename || 'Unknown filename'}`);
+                } else {
+                    addDebugLog(`Download failed: ${data.error || 'Unknown error'}`, 'error');
+                    showResult('Download Failed', data.error || 'An unknown error occurred');
                 }
-
-                updateDebugBox(`Found ${data.results.length} results`, 'success');
-                showSearchResults(data.results || []);
             } catch (error) {
-                updateDebugBox(`Search error: ${error.message}`, 'error');
-                showError(error.message);
-            } finally {
-                setLoading(false);
+                addDebugLog(`Network error: ${error.message}`, 'error');
+                showResult('Network Error', `Failed to connect to server: ${error.message}`);
             }
-        });
-
-        function setLoading(isLoading) {
-            submitBtn.disabled = isLoading;
-            searchBtn.disabled = isLoading;
-            loading.style.display = isLoading ? 'block' : 'none';
-            urlInput.disabled = isLoading;
-            searchInput.disabled = isLoading;
         }
 
-        function showSearchResults(results) {
-            if (results.length === 0) {
-                resultsList.innerHTML = '<p style="color: #9cdcfe; text-align: center;">No results found</p>';
-            } else {
-                resultsList.innerHTML = results.map(item => `
-                    <div class="result-item" onclick="downloadFromResult('${item.url}')">
-                        <h4>${item.title}</h4>
-                        <p>${item.artist}</p>
-                        <div class="meta">Type: ${item.type} | Rating: ${item.rating || 'N/A'}</div>
-                    </div>
-                `).join('');
-            }
-            searchResults.style.display = 'block';
-        }
-
-        function downloadFromResult(url) {
-            // Switch to download tab and populate the URL
-            const downloadTab = document.querySelector('[data-tab="download"]');
-            downloadTab.click();
+        // Search function
+        async function performSearch(query) {
+            showLoading();
+            addDebugLog(`Searching Ultimate Guitar for: "${query}"`, 'info');
             
-            urlInput.value = url;
-            
-            // Trigger download
-            downloadForm.dispatchEvent(new Event('submit'));
-        }
-
-        function showSuccess(data) {
-            result.className = 'result success';
-            resultTitle.textContent = '✅ Download Successful!';
-            
-            let content = `
-                <p><strong>URL:</strong> ${data.originalUrl}</p>
-                <p><strong>Filename:</strong> ${data.filename}</p>
-                <p><strong>Size:</strong> ${data.fileSize}</p>
-            `;
-            
-            if (data.duration) {
-                content += `<p><strong>Duration:</strong> ${data.duration}</p>`;
-            }
-            
-            if (data.downloadUrl) {
-                content += `
-                    <button class="download-btn" onclick="downloadFile('${data.downloadUrl}', '${data.filename}')">
-                        📥 Download File
-                    </button>
-                `;
-            }
-            
-            // Add verbose output section
-            if (data.debug) {
-                content += `
-                    <details class="verbose-output">
-                        <summary>🔍 Verbose Output</summary>
-                        <pre class="debug-log">${JSON.stringify(data.debug, null, 2)}</pre>
-                    </details>
-                `;
-            }
-            
-            resultContent.innerHTML = content;
-            result.style.display = 'block';
-        }
-
-        function showError(message) {
-            result.className = 'result error';
-            resultTitle.textContent = '❌ Error';
-            resultContent.innerHTML = `<p>${message}</p>`;
-            result.style.display = 'block';
-        }
-
-        function hideResult() {
-            result.style.display = 'none';
-        }
-
-        function updateDebugBox(message, type = 'info') {
-            const timestamp = new Date().toLocaleTimeString();
-            const logLine = document.createElement('div');
-            logLine.className = `debug-log-line ${type}`;
-            logLine.textContent = `[${timestamp}] ${message}`;
-            
-            debugContent.appendChild(logLine);
-            debugContent.scrollTop = debugContent.scrollHeight;
-        }
-
-        function clearDebugBox() {
-            debugContent.innerHTML = '<p>Debug information cleared. Ready for new operation.</p>';
-        }
-
-        function downloadFile(url, filename) {
-            console.log('📥 Starting download:', url, filename);
-            
-            // Create a progress bar
-            const progressContainer = document.createElement('div');
-            progressContainer.className = 'download-progress';
-            progressContainer.innerHTML = `
-                <div class="progress-bar">
-                    <div class="progress-fill" style="width: 0%"></div>
-                </div>
-                <p class="progress-text">Preparing download...</p>
-            `;
-            
-            // Insert progress bar after the download button
-            const downloadBtn = document.querySelector('.download-btn');
-            downloadBtn.parentNode.insertBefore(progressContainer, downloadBtn.nextSibling);
-            
-            // Simulate progress (in real implementation, you'd track actual progress)
-            let progress = 0;
-            const progressInterval = setInterval(() => {
-                progress += Math.random() * 15;
-                if (progress > 90) progress = 90;
+            try {
+                const response = await fetch(`/.netlify/functions/search?query=${encodeURIComponent(query)}&limit=20`);
+                const data = await response.json();
                 
-                const progressFill = progressContainer.querySelector('.progress-fill');
-                const progressText = progressContainer.querySelector('.progress-text');
-                
-                progressFill.style.width = progress + '%';
-                progressText.textContent = `Downloading... ${Math.round(progress)}%`;
-            }, 200);
-            
-            // Start the actual download
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = filename || 'download';
-            link.style.display = 'none';
-            document.body.appendChild(link);
-            
-            // Complete the progress when download starts
-            setTimeout(() => {
-                clearInterval(progressInterval);
-                const progressFill = progressContainer.querySelector('.progress-fill');
-                const progressText = progressContainer.querySelector('.progress-text');
-                
-                progressFill.style.width = '100%';
-                progressText.textContent = 'Download complete!';
-                
-                // Remove progress bar after a delay
-                setTimeout(() => {
-                    progressContainer.remove();
-                }, 2000);
-            }, 1000);
-            
-            link.click();
-            document.body.removeChild(link);
+                if (response.ok && data.results) {
+                    addDebugLog(`Found ${data.results.length} results`, 'success');
+                    showSearchResults(data.results);
+                } else {
+                    addDebugLog(`Search failed: ${data.error || 'No results found'}`, 'warning');
+                    showSearchResults([]);
+                }
+            } catch (error) {
+                addDebugLog(`Search error: ${error.message}`, 'error');
+                showResult('Search Error', `Failed to search: ${error.message}`);
+            }
         }
 
-        // Auto-focus the input
-        urlInput.focus();
+        // Initialize
+        addDebugLog('EchoHEIST Web Interface initialized', 'success');
+        addDebugLog('Ready to download Ultimate Guitar tabs', 'info');
     </script>
 </body>
 </html>
