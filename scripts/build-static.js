@@ -24,6 +24,9 @@ try {
     'public/styles.css',
     'public/favicon.ico',
     'echoHEIST.sh',
+    'install.sh',
+    'install.ps1',
+    'install.bat',
   ];
 
   publicFiles.forEach((file) => {
