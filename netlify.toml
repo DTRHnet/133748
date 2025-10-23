@@ -17,6 +17,26 @@
   
   # Build environment variables
   NODE_ENV = "production"
+  
+  # Chrome/Chromium Settings (Netlify provides Chrome)
+  CHROME_PATH = "/opt/chrome/chrome"
+  
+  # Ultimate Guitar Settings
+  UG_BASE_URL = "https://www.ultimate-guitar.com"
+  UG_SEARCH_ENDPOINT = "/search.php"
+  
+  # Download Settings
+  REQUEST_TIMEOUT_MS = "15000"
+  PAGE_DELAY_MS = "1000"
+  MAX_SEARCH_PAGES = "10"
+  
+  # Debug Settings
+  DEBUG = "false"
+  LOG_LEVEL = "info"
+  
+  # Feature Flags
+  ENABLE_SEARCH = "true"
+  ENABLE_DOWNLOAD = "true"
 
 # Redirect rules for SPA routing
 [[redirects]]
