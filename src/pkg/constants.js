@@ -6,12 +6,28 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 let APP_NAME = '133748';
-let APP_VERSION = '0.2.0-alpha-config-engine'; // Make sure this is updated to your latest version
+let APP_VERSION = '0.2.0-alpha-04'; // Make sure this is updated to your latest version
 try {
-  const packageJsonPath = path.resolve(__dirname, '../../../package.json');
-  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
-  APP_NAME = packageJson.name;
-  APP_VERSION = packageJson.version;
+  // Try multiple possible paths for package.json
+  const possiblePaths = [
+    path.resolve(__dirname, '../../../package.json'),
+    path.resolve(process.cwd(), 'package.json'),
+    path.resolve(__dirname, '../../package.json'),
+  ];
+
+  let packageJsonPath = null;
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p)) {
+      packageJsonPath = p;
+      break;
+    }
+  }
+
+  if (packageJsonPath) {
+    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+    APP_NAME = packageJson.name;
+    APP_VERSION = packageJson.version;
+  }
 } catch (e) {
   console.warn('Could not read package.json for app name and version:', e.message);
 }
