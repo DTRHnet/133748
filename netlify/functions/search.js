@@ -20,7 +20,7 @@ export const handler = async (event) => {
 
   try {
     // Parse query parameters
-    const { query, limit = '10' } = event.queryStringParameters || {};
+    const { query, limit = '50' } = event.queryStringParameters || {};
 
     if (!query) {
       return {
@@ -28,169 +28,174 @@ export const handler = async (event) => {
         headers: corsHeaders,
         body: JSON.stringify({
           error: 'Query parameter is required',
-          usage: '?query=metallica+one&limit=10',
+          usage: '?query=metallica+one&limit=50',
         }),
       };
     }
 
-    console.log(`Searching for: "${query}"`);
+    console.log(`Starting paginated search for: "${query}"`);
 
-    // Construct search URL
-    const encodedQuery = encodeURIComponent(query);
-    const searchUrl = `https://www.ultimate-guitar.com/search.php?search_type=title&value=${encodedQuery}`;
-
-    console.log(`Fetching: ${searchUrl}`);
-
-    // Fetch the search page directly
-    const response = await fetch(searchUrl, {
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.5',
-        'Accept-Encoding': 'gzip, deflate, br',
-        Connection: 'keep-alive',
-        'Upgrade-Insecure-Requests': '1',
-        'Sec-Fetch-Dest': 'document',
-        'Sec-Fetch-Mode': 'navigate',
-        'Sec-Fetch-Site': 'none',
-        'Cache-Control': 'no-cache',
-        Pragma: 'no-cache',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Search failed with status: ${response.status}`);
-    }
-
-    const html = await response.text();
-    const $ = cheerio.load(html);
-
-    // Extract search results
-    const results = [];
     const limitNum = parseInt(limit);
+    const allResults = [];
+    const maxPages = Math.min(10, Math.ceil(limitNum / 20)); // Ultimate Guitar shows ~20 results per page
 
-    // Try different selectors for search results
-    const resultSelectors = [
-      '.js-store',
-      '.search-results .result',
-      '[data-testid="search-results"] .result',
-      '.search-result',
-      '.tab-row',
-      'a[href*="/tab/"]',
-    ];
+    // Search multiple pages like the command line version
+    for (let page = 1; page <= maxPages; page++) {
+      try {
+        console.log(`Searching page ${page}...`);
 
-    let foundResults = false;
-    for (const selector of resultSelectors) {
-      const elements = $(selector);
-      if (elements.length > 0) {
-        console.log(`Found ${elements.length} results using selector: ${selector}`);
-        foundResults = true;
+        // Construct search URL with pagination
+        const encodedQuery = encodeURIComponent(query);
+        const searchUrl = `https://www.ultimate-guitar.com/search.php?search_type=title&value=${encodedQuery}&page=${page}`;
 
-        elements.each((index, element) => {
-          if (results.length >= limitNum) return false;
+        console.log(`Fetching: ${searchUrl}`);
+
+        // Fetch the search page
+        const response = await fetch(searchUrl, {
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Accept-Encoding': 'gzip, deflate, br',
+            Connection: 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Cache-Control': 'no-cache',
+            Pragma: 'no-cache',
+          },
+        });
+
+        if (!response.ok) {
+          console.log(`Page ${page} failed with status: ${response.status}`);
+          break; // Stop if we can't fetch more pages
+        }
+
+        const html = await response.text();
+        const $ = cheerio.load(html);
+
+        // Extract results from this page
+        const pageResults = [];
+
+        // Look for tab links - Ultimate Guitar uses various selectors
+        const tabLinks = $('a[href*="/tab/"]');
+
+        tabLinks.each((index, element) => {
+          if (allResults.length >= limitNum) return false;
 
           const $el = $(element);
+          const url = $el.attr('href');
+          const title = $el.text().trim();
 
-          // Try to extract title and URL
-          let title = '';
-          let url = '';
-
-          if (selector === 'a[href*="/tab/"]') {
-            // Direct link approach
-            url = $el.attr('href');
-            title = $el.text().trim();
-          } else {
-            // Structured result approach
-            title =
-              $el.find('.result-link, .tab-link, a[href*="/tab/"]').first().text().trim() ||
-              $el.find('h3, .title, .tab-title').first().text().trim();
-
-            url =
-              $el.find('.result-link, .tab-link, a[href*="/tab/"]').first().attr('href') ||
-              $el.find('a').first().attr('href');
-          }
-
-          if (title && url && title.length > 3) {
+          if (url && title && title.length > 3) {
             // Make sure URL is absolute
-            if (!url.startsWith('http')) {
-              url = new URL(url, 'https://www.ultimate-guitar.com').href;
-            }
+            const fullUrl = url.startsWith('http')
+              ? url
+              : new URL(url, 'https://www.ultimate-guitar.com').href;
+
+            // Parse the title to extract artist and song
+            // Ultimate Guitar format is usually "Artist - Song Name (Type)"
+            let artist = 'Unknown Artist';
+            let songTitle = title;
+            let type = 'Tab';
 
             // Try to extract artist and song from title
             const parts = title.split(' - ');
-            const artist = parts.length > 1 ? parts[0].trim() : 'Unknown Artist';
-            const songTitle = parts.length > 1 ? parts.slice(1).join(' - ').trim() : title;
+            if (parts.length > 1) {
+              artist = parts[0].trim();
+              songTitle = parts.slice(1).join(' - ').trim();
+            }
 
-            // Try to extract additional info
-            const type =
-              $el.find('.tab-type, .type, .version').first().text().trim() ||
-              $el.find('.badge, .tag').first().text().trim() ||
-              'Tab';
+            // Extract type from the URL or title
+            if (url.includes('guitar-pro')) {
+              type = 'Guitar Pro';
+            } else if (url.includes('bass')) {
+              type = 'Bass';
+            } else if (url.includes('drums')) {
+              type = 'Drums';
+            } else if (url.includes('chords')) {
+              type = 'Chords';
+            } else if (url.includes('power')) {
+              type = 'Power';
+            } else if (url.includes('official')) {
+              type = 'Official';
+            } else if (url.includes('video')) {
+              type = 'Video';
+            }
 
-            const rating =
-              $el.find('.rating, .stars, .score').first().text().trim() ||
-              $el.find('[class*="rating"]').first().text().trim() ||
-              'N/A';
+            // Clean up the song title (remove type indicators)
+            songTitle = songTitle.replace(/\s*\([^)]*\)\s*$/, '').trim();
 
-            const votes =
-              $el.find('.votes, .vote-count, .count').first().text().trim() ||
-              $el.find('[class*="vote"]').first().text().trim() ||
-              '0';
+            const result = {
+              title: songTitle,
+              artist: artist,
+              type: type,
+              rating: 'N/A',
+              votes: '0',
+              url: fullUrl,
+            };
 
-            results.push({
-              title: songTitle.replace(/\s+/g, ' ').trim(),
-              artist: artist.replace(/\s+/g, ' ').trim(),
-              type: type.replace(/\s+/g, ' ').trim(),
-              rating: rating.replace(/\s+/g, ' ').trim(),
-              votes: votes.replace(/\s+/g, ' ').trim(),
-              url: url,
-            });
+            // Avoid duplicates
+            const isDuplicate = allResults.some(
+              (existing) =>
+                existing.url === fullUrl ||
+                (existing.artist === artist &&
+                  existing.title === songTitle &&
+                  existing.type === type)
+            );
+
+            if (!isDuplicate) {
+              pageResults.push(result);
+              allResults.push(result);
+            }
           }
         });
 
-        if (results.length > 0) {
-          break; // Stop after finding results with first working selector
+        console.log(
+          `Page ${page}: Found ${pageResults.length} new results (${allResults.length} total)`
+        );
+
+        // If no results found on this page, we've probably reached the end
+        if (pageResults.length === 0) {
+          console.log(`No results on page ${page}, stopping pagination`);
+          break;
         }
+
+        // Small delay between requests to be respectful
+        if (page < maxPages) {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+      } catch (error) {
+        console.log(`Error on page ${page}: ${error.message}`);
+        break; // Stop pagination on error
       }
     }
 
-    // If no structured results found, try fallback approach
-    if (!foundResults || results.length === 0) {
-      console.log('No structured results found, trying fallback approach...');
+    console.log(`Paginated search complete. Total unique results: ${allResults.length}`);
 
-      // Look for any links that might be tabs
-      $('a[href*="/tab/"]').each((index, element) => {
-        if (results.length >= limitNum) return false;
-
-        const $el = $(element);
-        const title = $el.text().trim();
-        const url = $el.attr('href');
-
-        if (title && url && title.length > 3) {
-          // Make sure URL is absolute
-          const fullUrl = url.startsWith('http')
-            ? url
-            : new URL(url, 'https://www.ultimate-guitar.com').href;
-
-          // Try to extract artist and song from title
-          const parts = title.split(' - ');
-          const artist = parts.length > 1 ? parts[0].trim() : 'Unknown Artist';
-          const songTitle = parts.length > 1 ? parts.slice(1).join(' - ').trim() : title;
-
-          results.push({
-            title: songTitle,
-            artist: artist,
-            type: 'Tab',
-            rating: 'N/A',
-            votes: '0',
-            url: fullUrl,
-          });
-        }
-      });
-    }
-
-    console.log(`Found ${results.length} results`);
+    // Sort results by type and title for better organization
+    allResults.sort((a, b) => {
+      // First sort by type
+      if (a.type !== b.type) {
+        const typeOrder = [
+          'Guitar Pro',
+          'Official',
+          'Tab',
+          'Power',
+          'Bass',
+          'Drums',
+          'Chords',
+          'Video',
+        ];
+        const aIndex = typeOrder.indexOf(a.type);
+        const bIndex = typeOrder.indexOf(b.type);
+        return (aIndex === -1 ? 999 : aIndex) - (bIndex === -1 ? 999 : bIndex);
+      }
+      // Then by title
+      return a.title.localeCompare(b.title);
+    });
 
     return {
       statusCode: 200,
@@ -198,8 +203,12 @@ export const handler = async (event) => {
       body: JSON.stringify({
         success: true,
         query,
-        results,
-        count: results.length,
+        results: allResults.slice(0, limitNum), // Ensure we don't exceed the limit
+        count: allResults.length,
+        pages_searched: Math.min(
+          maxPages,
+          allResults.length > 0 ? Math.ceil(allResults.length / 20) : 1
+        ),
         timestamp: new Date().toISOString(),
       }),
     };
