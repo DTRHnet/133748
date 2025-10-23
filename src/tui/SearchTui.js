@@ -18,6 +18,38 @@ const TAB_TYPES_ORDER = [
   'Unknown Type',
 ];
 
+// VIM-style theme definitions
+const THEMES = {
+  dark: {
+    name: 'Dark (VIM)',
+    background: 'black',
+    foreground: '#d0d0d0',
+    cursor: 'cyan',
+    selected: 'green',
+    header: 'yellow',
+    type: '#569cd6',      // Light blue
+    artist: '#ce9178',    // Light orange
+    song: '#dcdcaa',      // Light yellow
+    tab: '#c586c0',       // Light purple
+    dim: 'gray',
+    sortIndicator: 'yellow',
+  },
+  light: {
+    name: 'Light (VIM)',
+    background: '#f0f0f0',
+    foreground: '#000000',
+    cursor: 'blue',
+    selected: '#008000',
+    header: '#af5f00',
+    type: '#0000ff',      // Blue
+    artist: '#a31515',    // Dark red
+    song: '#795e26',      // Brown
+    tab: '#af00db',       // Purple
+    dim: '#585858',
+    sortIndicator: '#af5f00',
+  },
+};
+
 const SearchTui = ({ songsData }) => {
   const rootNode = songsData[0];
   const { exit } = useApp();
@@ -25,6 +57,9 @@ const SearchTui = ({ songsData }) => {
   const [expandedNodes, setExpandedNodes] = useState(new Set());
   const [sortOrder, setSortOrder] = useState('type_asc');
   const [selectedUrls, setSelectedUrls] = useState(new Set());
+  const [theme, setTheme] = useState('dark');
+  
+  const currentTheme = THEMES[theme];
 
   useEffect(() => {
     if (rootNode) {
@@ -232,6 +267,9 @@ const SearchTui = ({ songsData }) => {
       } else {
         warn('No tabs selected for download. Press SPACE to select tabs.');
       }
+    } else if (input === 't') {
+      // Toggle theme
+      setTheme((prevTheme) => (prevTheme === 'dark' ? 'light' : 'dark'));
     }
   });
 
@@ -248,9 +286,27 @@ const SearchTui = ({ songsData }) => {
     const isSelected = node.type === 'tab' && selectedUrls.has(node.url);
 
     let prefix = '';
-    let nodeColor = isFocused ? 'cyan' : 'white';
+    let nodeColor = currentTheme.foreground;
+    
+    // Apply type-specific colors
+    if (node.type === 'type') {
+      nodeColor = currentTheme.type;
+    } else if (node.type === 'artist') {
+      nodeColor = currentTheme.artist;
+    } else if (node.type === 'song') {
+      nodeColor = currentTheme.song;
+    } else if (node.type === 'tab') {
+      nodeColor = currentTheme.tab;
+    }
+    
+    // Override with cursor color if focused
+    if (isFocused) {
+      nodeColor = currentTheme.cursor;
+    }
+    
+    // Override with selected color if selected
     if (isSelected) {
-      nodeColor = 'green';
+      nodeColor = currentTheme.selected;
     }
 
     if (node.children && node.children.length > 0) {
@@ -288,30 +344,31 @@ const SearchTui = ({ songsData }) => {
   return (
     <Box flexDirection="column" padding={0}>
       <Box flexDirection="row" marginBottom={1}>
-        <Text bold>Sort by: </Text>
-        <Text>[1] Type{getSortIndicator(sortOrder, 'type_asc')} </Text>
-        <Text>[2] Artist{getSortIndicator(sortOrder, 'artist_asc')} </Text>
-        <Text>[3] Song{getSortIndicator(sortOrder, 'song_asc')} </Text>
-        <Text>[4] Tab Type{getSortIndicator(sortOrder, 'tab_asc')} </Text>
-        <Text>[a] Toggle Current Level </Text>
+        <Text bold color={currentTheme.header}>Sort by: </Text>
+        <Text color={currentTheme.foreground}>[1] Type{getSortIndicator(sortOrder, 'type_asc')} </Text>
+        <Text color={currentTheme.foreground}>[2] Artist{getSortIndicator(sortOrder, 'artist_asc')} </Text>
+        <Text color={currentTheme.foreground}>[3] Song{getSortIndicator(sortOrder, 'song_asc')} </Text>
+        <Text color={currentTheme.foreground}>[4] Tab Type{getSortIndicator(sortOrder, 'tab_asc')} </Text>
+        <Text color={currentTheme.foreground}>[a] Toggle Current Level </Text>
+        <Text color={currentTheme.header}>[t] Theme: {currentTheme.name}</Text>
       </Box>
 
       {flatNodes.length === 0 ? (
-        <Text color="yellow">No results found.</Text>
+        <Text color={currentTheme.header}>No results found.</Text>
       ) : (
         <Box flexDirection="column">
-          <Text color="white" bold>
+          <Text color={currentTheme.header} bold>
             {rootNode.name} ({flatNodes.filter((n) => n.node.type === 'tab').length} total tabs)
           </Text>
           {flatNodes.map((flatNode, idx) => renderNode(flatNode, idx))}
         </Box>
       )}
       <Box marginTop={1}>
-        <Text dim>
+        <Text color={currentTheme.dim}>
           Press 'q' or 'Esc' to exit. Use Arrow Keys to navigate. Left/Right or Enter to
           expand/collapse.
         </Text>
-        <Text dim>Space to select/deselect. 'd' to download selected tabs.</Text>
+        <Text color={currentTheme.dim}>Space to select/deselect. 'd' to download selected tabs. 't' to toggle theme.</Text>
       </Box>
     </Box>
   );
