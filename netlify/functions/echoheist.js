@@ -1,8 +1,4 @@
-import puppeteer from 'puppeteer-extra';
-import StealthPlugin from 'puppeteer-extra-plugin-stealth';
-
-// Use stealth plugin to avoid detection
-puppeteer.use(StealthPlugin());
+import puppeteer from 'puppeteer';
 
 export const handler = async (event, _context) => {
   // Enable CORS
@@ -38,6 +34,7 @@ export const handler = async (event, _context) => {
   const downloadPromise = async () => {
     let browser;
     try {
+      console.log('Starting EchoHEIST download function...');
       const { url } = JSON.parse(event.body || '{}');
 
       if (!url) {
@@ -61,7 +58,7 @@ export const handler = async (event, _context) => {
 
       console.log(`Starting download for URL: ${url}`);
 
-      // Launch browser with serverless-optimized options (based on original echoheist logic)
+      // Launch browser with exact same options as original grab.js
       browser = await puppeteer.launch({
         headless: 'new',
         args: [
@@ -72,14 +69,6 @@ export const handler = async (event, _context) => {
           '--no-first-run',
           '--no-zygote',
           '--disable-gpu',
-          '--disable-web-security',
-          '--disable-features=VizDisplayCompositor',
-          '--single-process',
-          '--memory-pressure-off',
-          '--max_old_space_size=1024',
-          '--disable-background-timer-throttling',
-          '--disable-backgrounding-occluded-windows',
-          '--disable-renderer-backgrounding',
         ],
       });
 
@@ -103,35 +92,115 @@ export const handler = async (event, _context) => {
         const requestUrl = req.url();
         console.log(`Request #${requestCount}: ${requestUrl}`);
 
-        // Match the desired download request (same logic as original echoheist)
-        if (!requestUrl.includes('/download/public/')) {
-          req.continue(); // Not a download request, continue
-          return;
+        // Match the desired download request (exact same logic as original)
+        if (requestUrl.includes('/download/public/')) {
+          console.log('Captured download request!');
+          console.log(`Download URL: ${requestUrl}`);
+
+          // Store the download URL and headers for later use
+          downloadUrl = requestUrl;
+          downloadHeaders = req.headers();
+          downloadInitiated = true;
         }
 
-        console.log('Captured download request!');
-        console.log(`Download URL: ${requestUrl}`);
-
-        // Store the download URL and headers for later use
-        downloadUrl = requestUrl;
-        downloadHeaders = req.headers();
-        downloadInitiated = true;
-
-        // Abort the original request since we'll handle it ourselves
-        req.abort();
+        req.continue();
       });
 
-      // Navigate to the provided URL (same as original)
-      console.log(`Navigating to ${url} to capture download link...`);
+      // Navigate to the provided URL (same as original echoheist)
+      console.log(`Navigating to ${url}...`);
       await page.goto(url, {
         waitUntil: 'networkidle2',
-        timeout: 30000,
+        timeout: 60000,
       });
 
-      // Add a short delay to ensure all dynamic requests are captured (same as original)
-      console.log('Waiting 3 seconds for dynamic requests...');
+      // Wait to ensure all requests are captured (same as original)
+      console.log('Waiting for network activity...');
       await new Promise((resolve) => setTimeout(resolve, 3000));
       console.log(`Total requests captured: ${requestCount}`);
+
+      // Try to find and click download button if no request was intercepted
+      if (!downloadInitiated) {
+        console.log('No download request intercepted, trying to find download button...');
+        try {
+          // Look for download buttons
+          const downloadSelectors = [
+            'a[href*="download"]',
+            'button[class*="download"]',
+            '.download-button',
+            '.download-btn',
+            'a[class*="download"]',
+            'button[onclick*="download"]',
+            '.js-download',
+            '[data-action="download"]',
+            'a[href*="guitar-pro"]',
+            'a[href*=".gpx"]',
+            'a[href*=".gp5"]',
+          ];
+
+          for (const selector of downloadSelectors) {
+            try {
+              const element = await page.$(selector);
+              if (element) {
+                console.log(`Found download button with selector: ${selector}`);
+                await element.click();
+                console.log('Clicked download button');
+
+                // Wait for download request after clicking
+                await new Promise((resolve) => setTimeout(resolve, 3000));
+                break;
+              }
+            } catch (e) {
+              // Continue to next selector
+            }
+          }
+        } catch (error) {
+          console.log('Error clicking download button:', error.message);
+        }
+      }
+
+      if (!downloadInitiated) {
+        console.log('No download request intercepted, trying direct download approach...');
+
+        // Try to find direct download links in the page content
+        try {
+          const downloadLinks = await page.evaluate(() => {
+            // Look for any links that might be direct downloads
+            // eslint-disable-next-line no-undef
+            const links = Array.from(document.querySelectorAll('a'));
+            return links
+              .map((link) => ({
+                href: link.href,
+                text: link.textContent.trim(),
+                className: link.className,
+              }))
+              .filter(
+                (link) =>
+                  link.href.includes('download') ||
+                  link.href.includes('guitar-pro') ||
+                  link.href.includes('.gpx') ||
+                  link.href.includes('.gp5') ||
+                  link.text.toLowerCase().includes('download') ||
+                  link.text.toLowerCase().includes('guitar pro')
+              );
+          });
+
+          if (downloadLinks.length > 0) {
+            console.log(`Found ${downloadLinks.length} potential download links:`, downloadLinks);
+            const downloadLink = downloadLinks[0];
+            downloadUrl = downloadLink.href;
+            downloadHeaders = {
+              'User-Agent':
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              Referer: url,
+              Accept: 'application/octet-stream, application/x-guitar-pro, */*',
+            };
+            downloadInitiated = true;
+            console.log('Using direct download link:', downloadUrl);
+          }
+        } catch (e) {
+          console.log('Error finding direct download links:', e.message);
+        }
+      }
 
       if (!downloadInitiated) {
         return {
