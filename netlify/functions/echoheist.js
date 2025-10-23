@@ -1,4 +1,4 @@
-import puppeteer from 'puppeteer';
+import * as cheerio from 'cheerio';
 
 export const handler = async (event, _context) => {
   // Enable CORS
@@ -26,7 +26,6 @@ export const handler = async (event, _context) => {
     };
   }
 
-  let browser;
   try {
     console.log('Starting EchoHEIST download function...');
     const { url } = JSON.parse(event.body || '{}');
@@ -52,59 +51,106 @@ export const handler = async (event, _context) => {
 
     console.log(`Starting download for URL: ${url}`);
 
-    // Launch browser with minimal options for serverless
-    browser = await puppeteer.launch({
-      headless: 'new',
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--single-process',
-        '--no-zygote',
-      ],
+    // Fetch the page content directly
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Accept-Encoding': 'gzip, deflate, br',
+        Connection: 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+      },
     });
 
-    const page = await browser.newPage();
+    if (!response.ok) {
+      throw new Error(`Failed to fetch page: ${response.status}`);
+    }
 
-    // Set user agent
-    await page.setUserAgent(
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    const html = await response.text();
+    const $ = cheerio.load(html);
+
+    // Look for download links in the page
+    let downloadUrl = null;
+    let filename = 'download.gpx';
+
+    // Try to find download links
+    const downloadLinks = $(
+      'a[href*="download"], a[href*="guitar-pro"], a[href*=".gpx"], a[href*=".gp5"]'
     );
 
-    // Enable network request interception
-    await page.setRequestInterception(true);
+    if (downloadLinks.length > 0) {
+      const firstLink = downloadLinks.first();
+      downloadUrl = firstLink.attr('href');
 
-    let downloadUrl = null;
-    let downloadHeaders = null;
-    let downloadInitiated = false;
-
-    page.on('request', (req) => {
-      const requestUrl = req.url();
-      console.log(`Request: ${requestUrl}`);
-
-      // Match the desired download request
-      if (requestUrl.includes('/download/public/')) {
-        console.log('Captured download request!');
-        downloadUrl = requestUrl;
-        downloadHeaders = req.headers();
-        downloadInitiated = true;
+      // Make sure it's a full URL
+      if (downloadUrl && !downloadUrl.startsWith('http')) {
+        downloadUrl = new URL(downloadUrl, url).href;
       }
 
-      req.continue();
-    });
+      // Extract filename from link text or href
+      const linkText = firstLink.text().trim();
+      if (linkText && linkText.includes('.')) {
+        filename = linkText;
+      } else {
+        const urlParts = downloadUrl.split('/');
+        filename = urlParts[urlParts.length - 1] || 'download.gpx';
+      }
+    }
 
-    // Navigate to the URL
-    console.log(`Navigating to ${url}...`);
-    await page.goto(url, {
-      waitUntil: 'domcontentloaded',
-      timeout: 30000,
-    });
+    // If no direct download link found, try to find it in JavaScript or data attributes
+    if (!downloadUrl) {
+      // Look for download URLs in script tags or data attributes
+      const scripts = $('script').toArray();
+      for (const script of scripts) {
+        const scriptContent = $(script).html() || '';
+        const downloadMatch = scriptContent.match(/download[^"']*["']([^"']*download[^"']*)["']/i);
+        if (downloadMatch) {
+          downloadUrl = downloadMatch[1];
+          if (!downloadUrl.startsWith('http')) {
+            downloadUrl = new URL(downloadUrl, url).href;
+          }
+          break;
+        }
+      }
+    }
 
-    // Wait for requests
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    // If still no download URL, try to construct it from the tab ID
+    if (!downloadUrl) {
+      const tabIdMatch = url.match(/tab\/([^/]+)\/([^/]+)-(\d+)/);
+      if (tabIdMatch) {
+        const tabId = tabIdMatch[3];
+        // Try common download URL patterns
+        const possibleUrls = [
+          `https://tabs.ultimate-guitar.com/download/public/${tabId}`,
+          `https://tabs.ultimate-guitar.com/tab/download/${tabId}`,
+          `https://www.ultimate-guitar.com/download/${tabId}`,
+        ];
 
-    if (!downloadInitiated) {
+        for (const testUrl of possibleUrls) {
+          try {
+            const testResponse = await fetch(testUrl, {
+              method: 'HEAD',
+              headers: {
+                'User-Agent':
+                  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                Referer: url,
+              },
+            });
+
+            if (testResponse.ok) {
+              downloadUrl = testUrl;
+              break;
+            }
+          } catch (e) {
+            // Continue to next URL
+          }
+        }
+      }
+    }
+
+    if (!downloadUrl) {
       return {
         statusCode: 404,
         headers,
@@ -112,26 +158,28 @@ export const handler = async (event, _context) => {
           error: 'No download link found',
           message: 'This URL may not contain a downloadable Guitar Pro file',
           url: url,
+          suggestion: 'Please check if this tab has a Guitar Pro version available',
         }),
       };
     }
 
+    console.log(`Found download URL: ${downloadUrl}`);
+
     // Download the file
-    console.log(`Downloading file from: ${downloadUrl}`);
-    const response = await fetch(downloadUrl, {
+    const downloadResponse = await fetch(downloadUrl, {
       headers: {
-        ...downloadHeaders,
         'User-Agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         Referer: url,
+        Accept: 'application/octet-stream, application/x-guitar-pro, */*',
       },
     });
 
-    if (!response.ok) {
-      throw new Error(`Download failed with status: ${response.status}`);
+    if (!downloadResponse.ok) {
+      throw new Error(`Download failed with status: ${downloadResponse.status}`);
     }
 
-    const fileBuffer = await response.arrayBuffer();
+    const fileBuffer = await downloadResponse.arrayBuffer();
     console.log(`Downloaded file size: ${fileBuffer.byteLength} bytes`);
 
     if (fileBuffer.byteLength === 0) {
@@ -140,9 +188,7 @@ export const handler = async (event, _context) => {
 
     const base64Data = Buffer.from(fileBuffer).toString('base64');
 
-    // Extract filename
-    const urlParts = downloadUrl.split('/');
-    let filename = urlParts[urlParts.length - 1] || 'download.gpx';
+    // Clean up filename
     filename = filename.split('?')[0];
     if (!filename.includes('.')) {
       filename += '.gpx';
@@ -171,9 +217,5 @@ export const handler = async (event, _context) => {
         details: 'An error occurred while downloading the file',
       }),
     };
-  } finally {
-    if (browser) {
-      await browser.close();
-    }
   }
 };
