@@ -56,7 +56,10 @@ export const handler = async (event) => {
         '--disable-features=VizDisplayCompositor',
         '--single-process',
         '--memory-pressure-off',
-        '--max_old_space_size=4096',
+        '--max_old_space_size=1024',
+        '--disable-background-timer-throttling',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-renderer-backgrounding',
       ],
     });
 
@@ -73,43 +76,121 @@ export const handler = async (event) => {
 
     console.log(`Navigating to: ${searchUrl}`);
     await page.goto(searchUrl, {
-      waitUntil: 'networkidle2',
-      timeout: 30000,
+      waitUntil: 'domcontentloaded',
+      timeout: 15000,
     });
 
-    // Wait for results to load
-    await page.waitForSelector('.js-store', { timeout: 10000 });
+    // Wait for results to load - try multiple selectors
+    try {
+      await page.waitForSelector('.js-store, .search-results, [data-testid="search-results"]', {
+        timeout: 10000,
+      });
+    } catch (e) {
+      console.log('No specific results selector found, continuing...');
+    }
 
     // Get the page content
     const html = await page.content();
     const $ = cheerio.load(html);
 
-    // Parse search results
+    // Parse search results - try multiple selectors for current UG
     const results = [];
     const limitNum = parseInt(limit);
 
-    $('.js-store').each((index, element) => {
-      if (results.length >= limitNum) return false; // Stop if we have enough results
+    // Try different selectors for search results
+    const resultSelectors = [
+      '.js-store',
+      '.search-results .result',
+      '[data-testid="search-results"] .result',
+      '.search-result',
+      '.tab-row',
+    ];
 
-      const $el = $(element);
-      const title = $el.find('.result-link').text().trim();
-      const url = $el.find('.result-link').attr('href');
-      const artist = $el.find('.artist-name').text().trim();
-      const type = $el.find('.tab-type').text().trim();
-      const rating = $el.find('.rating').text().trim();
-      const votes = $el.find('.votes').text().trim();
+    let foundResults = false;
+    for (const selector of resultSelectors) {
+      const elements = $(selector);
+      if (elements.length > 0) {
+        console.log(`Found ${elements.length} results using selector: ${selector}`);
+        foundResults = true;
 
-      if (title && url) {
-        results.push({
-          title,
-          artist,
-          type,
-          rating: rating || 'N/A',
-          votes: votes || '0',
-          url: url.startsWith('http') ? url : `https://www.ultimate-guitar.com${url}`,
+        elements.each((index, element) => {
+          if (results.length >= limitNum) return false; // Stop if we have enough results
+
+          const $el = $(element);
+
+          // Try multiple selectors for each field
+          const title =
+            $el.find('.result-link, .tab-link, a[href*="/tab/"]').first().text().trim() ||
+            $el.find('h3, .title, .tab-title').first().text().trim();
+
+          const url =
+            $el.find('.result-link, .tab-link, a[href*="/tab/"]').first().attr('href') ||
+            $el.find('a').first().attr('href');
+
+          const artist =
+            $el.find('.artist-name, .artist, .band').first().text().trim() ||
+            $el
+              .find('.by')
+              .first()
+              .text()
+              .trim()
+              .replace(/^by\s+/i, '');
+
+          const type =
+            $el.find('.tab-type, .type, .version').first().text().trim() ||
+            $el.find('.badge, .tag').first().text().trim();
+
+          const rating =
+            $el.find('.rating, .stars, .score').first().text().trim() ||
+            $el.find('[class*="rating"]').first().text().trim();
+
+          const votes =
+            $el.find('.votes, .vote-count, .count').first().text().trim() ||
+            $el.find('[class*="vote"]').first().text().trim();
+
+          if (title && url) {
+            results.push({
+              title: title.replace(/\s+/g, ' ').trim(),
+              artist: artist.replace(/\s+/g, ' ').trim() || 'Unknown Artist',
+              type: type.replace(/\s+/g, ' ').trim() || 'Tab',
+              rating: rating.replace(/\s+/g, ' ').trim() || 'N/A',
+              votes: votes.replace(/\s+/g, ' ').trim() || '0',
+              url: url.startsWith('http') ? url : `https://www.ultimate-guitar.com${url}`,
+            });
+          }
         });
+        break; // Stop after finding results with first working selector
       }
-    });
+    }
+
+    if (!foundResults) {
+      console.log('No results found with any selector, trying fallback parsing...');
+
+      // Fallback: look for any links that might be tabs
+      $('a[href*="/tab/"]').each((index, element) => {
+        if (results.length >= limitNum) return false;
+
+        const $el = $(element);
+        const title = $el.text().trim();
+        const url = $el.attr('href');
+
+        if (title && url && title.length > 3) {
+          // Try to extract artist and song from title
+          const parts = title.split(' - ');
+          const artist = parts.length > 1 ? parts[0].trim() : 'Unknown Artist';
+          const songTitle = parts.length > 1 ? parts.slice(1).join(' - ').trim() : title;
+
+          results.push({
+            title: songTitle,
+            artist: artist,
+            type: 'Tab',
+            rating: 'N/A',
+            votes: '0',
+            url: url.startsWith('http') ? url : `https://www.ultimate-guitar.com${url}`,
+          });
+        }
+      });
+    }
 
     console.log(`Found ${results.length} results`);
 

@@ -61,7 +61,7 @@ export const handler = async (event, _context) => {
 
       console.log(`Starting download for URL: ${url}`);
 
-      // Launch browser with serverless-optimized options
+      // Launch browser with serverless-optimized options (based on original echoheist logic)
       browser = await puppeteer.launch({
         headless: 'new',
         args: [
@@ -85,126 +85,53 @@ export const handler = async (event, _context) => {
 
       const page = await browser.newPage();
 
-      // Set user agent
+      // Set user agent (same as original)
       await page.setUserAgent(
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
       );
 
-      // Enable network request interception
+      // Enable network request interception (key part of echoheist logic)
       await page.setRequestInterception(true);
 
       let downloadUrl = null;
       let downloadHeaders = null;
       let downloadInitiated = false;
+      let requestCount = 0;
 
       page.on('request', (req) => {
+        requestCount++;
         const requestUrl = req.url();
+        console.log(`Request #${requestCount}: ${requestUrl}`);
 
-        // Look for download requests - updated patterns for current UG
-        if (
-          requestUrl.includes('/download/public/') ||
-          requestUrl.includes('/download/') ||
-          requestUrl.includes('.gpx') ||
-          requestUrl.includes('.gp5') ||
-          requestUrl.includes('.gp4') ||
-          requestUrl.includes('.gp3') ||
-          requestUrl.includes('guitar-pro') ||
-          requestUrl.includes('tab_download')
-        ) {
-          console.log(`Captured download request: ${requestUrl}`);
-          downloadUrl = requestUrl;
-          downloadHeaders = req.headers();
-          downloadInitiated = true;
-
-          // Abort the request since we'll handle it ourselves
-          req.abort();
-        } else {
-          req.continue();
+        // Match the desired download request (same logic as original echoheist)
+        if (!requestUrl.includes('/download/public/')) {
+          req.continue(); // Not a download request, continue
+          return;
         }
+
+        console.log('Captured download request!');
+        console.log(`Download URL: ${requestUrl}`);
+
+        // Store the download URL and headers for later use
+        downloadUrl = requestUrl;
+        downloadHeaders = req.headers();
+        downloadInitiated = true;
+
+        // Abort the original request since we'll handle it ourselves
+        req.abort();
       });
 
-      // Navigate to the provided URL
-      console.log(`Navigating to ${url}...`);
+      // Navigate to the provided URL (same as original)
+      console.log(`Navigating to ${url} to capture download link...`);
       await page.goto(url, {
-        waitUntil: 'domcontentloaded',
-        timeout: 15000,
+        waitUntil: 'networkidle2',
+        timeout: 30000,
       });
 
-      // Wait for page to fully load
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Try to find and click the download button
-      try {
-        // Look for various download button selectors
-        const downloadSelectors = [
-          'a[href*="download"]',
-          'button[class*="download"]',
-          '.download-button',
-          '.download-btn',
-          'a[class*="download"]',
-          'button[onclick*="download"]',
-          '.js-download',
-          '[data-action="download"]',
-          'a[href*="guitar-pro"]',
-          'a[href*=".gpx"]',
-          'a[href*=".gp5"]',
-        ];
-
-        let downloadButton = null;
-        for (const selector of downloadSelectors) {
-          try {
-            downloadButton = await page.$(selector);
-            if (downloadButton) {
-              console.log(`Found download button with selector: ${selector}`);
-              break;
-            }
-          } catch (e) {
-            // Continue to next selector
-          }
-        }
-
-        if (downloadButton) {
-          console.log('Clicking download button...');
-          await downloadButton.click();
-
-          // Wait for download to initiate
-          await new Promise((resolve) => setTimeout(resolve, 3000));
-        } else {
-          console.log('No download button found, checking for direct download links...');
-
-          // Try to find direct download links in the page content
-          const downloadLinks = await page.evaluate(() => {
-            // eslint-disable-next-line no-undef
-            const links = Array.from(document.querySelectorAll('a'));
-            return links
-              .map((link) => ({
-                href: link.href,
-                text: link.textContent.trim(),
-                className: link.className,
-              }))
-              .filter(
-                (link) =>
-                  link.href.includes('download') ||
-                  link.href.includes('guitar-pro') ||
-                  link.href.includes('.gpx') ||
-                  link.href.includes('.gp5') ||
-                  link.text.toLowerCase().includes('download') ||
-                  link.text.toLowerCase().includes('guitar pro')
-              );
-          });
-
-          if (downloadLinks.length > 0) {
-            console.log(`Found ${downloadLinks.length} potential download links:`, downloadLinks);
-            // Click the first download link
-            await page.click(
-              'a[href*="download"], a[href*="guitar-pro"], a[href*=".gpx"], a[href*=".gp5"]'
-            );
-            await new Promise((resolve) => setTimeout(resolve, 3000));
-          }
-        }
-      } catch (error) {
-        console.log('Error clicking download button:', error.message);
-      }
+      // Add a short delay to ensure all dynamic requests are captured (same as original)
+      console.log('Waiting 3 seconds for dynamic requests...');
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      console.log(`Total requests captured: ${requestCount}`);
 
       if (!downloadInitiated) {
         return {
@@ -220,7 +147,7 @@ export const handler = async (event, _context) => {
         };
       }
 
-      // Download the file using the captured URL and headers
+      // Download the file using the captured URL and headers (replacing curl with fetch)
       console.log(`Downloading file from: ${downloadUrl}`);
       console.log(`Using headers:`, downloadHeaders);
 
