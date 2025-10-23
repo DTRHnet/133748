@@ -67,6 +67,15 @@
   # Node.js version for functions
   node_bundler = "esbuild"
 
+# Function-specific settings
+[functions."echoheist"]
+  timeout = 30
+  memory = 1024
+
+[functions."search"]
+  timeout = 30
+  memory = 1024
+
 # Edge Functions (if using)
 # [edge_functions]
 #   directory = "netlify/edge-functions"
