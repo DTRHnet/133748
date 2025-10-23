@@ -20,7 +20,9 @@ if (!existsSync(functionsDistDir)) {
 try {
   // Build functions using Babel
   console.log('📦 Transpiling functions with Babel...');
-  execSync('npx babel netlify/functions --out-dir netlify/functions/dist --extensions ".js"', {
+  const babelCmd =
+    process.platform === 'win32' ? 'node_modules\\.bin\\babel.cmd' : 'node_modules/.bin/babel';
+  execSync(`${babelCmd} netlify/functions --out-dir netlify/functions/dist --extensions ".js"`, {
     cwd: projectRoot,
     stdio: 'inherit',
   });
