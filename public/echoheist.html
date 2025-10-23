@@ -44,6 +44,10 @@
             margin: 0 0 1rem 0;
             text-shadow: 0 0 10px rgba(86, 156, 214, 0.3);
             line-height: 1;
+            white-space: pre; /* keep formatting */
+            overflow-x: auto; /* allow horizontal scroll if needed */
+            max-width: 100%;
+            display: block;
         }
 
         .tip {
@@ -362,6 +366,12 @@
                 font-size: 2rem;
             }
 
+            .ascii-art {
+                font-size: 0.6rem; /* shrink on tablets */
+                white-space: pre-wrap; /* allow wrapping on smaller screens */
+                word-break: break-word; /* prevent overflow */
+            }
+
             .link-grid {
                 flex-direction: column;
                 align-items: center;
@@ -370,6 +380,14 @@
             .footer-link {
                 width: 100%;
                 max-width: 300px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .ascii-art {
+                font-size: 0.5rem; /* extra shrink on phones */
+                white-space: pre-wrap;
+                word-break: break-word;
             }
         }
     </style>
@@ -547,117 +565,146 @@
         // Download function
         async function downloadFromUrl(url) {
             showLoading();
-            
-            try {
-                const response = await fetch('/.netlify/functions/echoheist', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ url })
-                });
+            const endpoints = [
+                '/.netlify/functions/echoheist',
+                '/.netlify/functions/grab',
+                '/api/echoheist',
+                '/api/grab'
+            ];
 
-                const contentType = response.headers.get('Content-Type') || '';
-                addDebugLog(`Server responded with status ${response.status} (${contentType})`, 'info');
-
-                // If the function returns a raw file stream
-                if (response.ok && contentType.includes('application/octet-stream')) {
-                    const disposition = response.headers.get('Content-Disposition') || '';
-                    const match = disposition.match(/filename="?([^";]+)"?/i);
-                    const filename = match ? match[1] : `download_${Date.now()}.gpx`;
-
-                    const blob = await response.blob();
-                    const sizeKb = (blob.size / 1024).toFixed(2);
-                    const objectUrl = URL.createObjectURL(blob);
-
-                    addDebugLog(`Downloaded ${filename} (${sizeKb} KB)`, 'success');
-
-                    // Render success card with download button
-                    const content = `
-                        <div style="display:flex;flex-direction:column;gap:12px;">
-                            <div><strong>URL:</strong> ${escapeHtml(url)}</div>
-                            <div><strong>Filename:</strong> ${escapeHtml(filename)}</div>
-                            <div><strong>Size:</strong> ${sizeKb} KB</div>
-                            <div><strong>Duration:</strong> Unknown</div>
-                            <div style="margin-top:8px;">
-                                <a href="${objectUrl}" download="${escapeAttr(filename)}" class="download-btn">
-                                    <span>⬇️</span> Download File
-                                </a>
-                            </div>
-                            <div style="margin-top:8px;font-size:0.8rem;color:#5c6370;">
-                                <span>▶️</span> <span>🔍</span> Verbose Output
-                            </div>
-                    </div>
-                    `;
-                    showResult('Download Successful!', content, true);
-                    return;
-                }
-
-                // Otherwise assume JSON (error or metadata)
-                let data;
+            let lastError = null;
+            for (const ep of endpoints) {
                 try {
-                    data = await response.json();
-                } catch (_) {
-                    data = { error: 'Unexpected response from server' };
+                    addDebugLog(`Trying endpoint: ${ep}`, 'info');
+                    const response = await fetch(ep, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url })
+                    });
+
+                    const contentType = response.headers.get('Content-Type') || '';
+                    addDebugLog(`Server responded with status ${response.status} (${contentType})`, 'info');
+
+                    // Raw file stream
+                    if (response.ok && contentType.includes('application/octet-stream')) {
+                        const disposition = response.headers.get('Content-Disposition') || '';
+                        const match = disposition.match(/filename="?([^";]+)"?/i);
+                        const filename = match ? match[1] : `download_${Date.now()}.gpx`;
+                        const blob = await response.blob();
+                        const sizeKb = (blob.size / 1024).toFixed(2);
+                        const objectUrl = URL.createObjectURL(blob);
+                        addDebugLog(`Downloaded ${filename} (${sizeKb} KB)`, 'success');
+                        const content = `
+                            <div style="display:flex;flex-direction:column;gap:12px;">
+                                <div><strong>URL:</strong> ${escapeHtml(url)}</div>
+                                <div><strong>Filename:</strong> ${escapeHtml(filename)}</div>
+                                <div><strong>Size:</strong> ${sizeKb} KB</div>
+                                <div><strong>Duration:</strong> Unknown</div>
+                                <div style="margin-top:8px;">
+                                    <a href="${objectUrl}" download="${escapeAttr(filename)}" class="download-btn">
+                                        <span>⬇️</span> Download File
+                                    </a>
+                                </div>
+                                <div style="margin-top:8px;font-size:0.8rem;color:#5c6370;">
+                                    <span>▶️</span> <span>🔍</span> Verbose Output
+                                </div>
+                            </div>`;
+                        showResult('Download Successful!', content, true);
+                        return;
+                    }
+
+                    // JSON flows
+                    let data;
+                    try { data = await response.json(); } catch (_) { data = null; }
+                    if (response.ok && data && data.base64) {
+                        const binary = atob(data.base64);
+                        const bytes = new Uint8Array(binary.length);
+                        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                        const blob = new Blob([bytes.buffer], { type: 'application/octet-stream' });
+                        const filename = data.filename || `download_${Date.now()}.gpx`;
+                        const objectUrl = URL.createObjectURL(blob);
+                        addDebugLog(`Downloaded ${filename} (${(blob.size/1024).toFixed(2)} KB)`, 'success');
+                        const content = `
+                            <div style="display:flex;flex-direction:column;gap:12px;">
+                                <div><strong>URL:</strong> ${escapeHtml(url)}</div>
+                                <div><strong>Filename:</strong> ${escapeHtml(filename)}</div>
+                                <div><strong>Size:</strong> ${(blob.size/1024).toFixed(2)} KB</div>
+                                <div><strong>Duration:</strong> Unknown</div>
+                                <div style="margin-top:8px;">
+                                    <a href="${objectUrl}" download="${escapeAttr(filename)}" class="download-btn">
+                                        <span>⬇️</span> Download File
+                                    </a>
+                                </div>
+                                <div style="margin-top:8px;font-size:0.8rem;color:#5c6370;">
+                                    <span>▶️</span> <span>🔍</span> Verbose Output
+                                </div>
+                            </div>`;
+                        showResult('Download Successful!', content, true);
+                        return;
+                    } else if (response.ok && data && data.downloadUrl) {
+                        // Handle local server JSON shape: provide a direct download link
+                        const filename = data.filename || `download_${Date.now()}.gpx`;
+                        addDebugLog(`Server prepared file at ${data.downloadUrl}`, 'success');
+                        const content = `
+                            <div style="display:flex;flex-direction:column;gap:12px;">
+                                <div><strong>URL:</strong> ${escapeHtml(url)}</div>
+                                <div><strong>Filename:</strong> ${escapeHtml(filename)}</div>
+                                <div style="margin-top:8px;">
+                                    <a href="${data.downloadUrl}" class="download-btn">
+                                        <span>⬇️</span> Download File
+                                    </a>
+                                </div>
+                                <div style="margin-top:8px;font-size:0.8rem;color:#5c6370;">
+                                    <span>▶️</span> <span>🔍</span> Verbose Output
+                                </div>
+                            </div>`;
+                        showResult('Ready to Download', content, true);
+                        return;
+                    }
+
+                    const message = (data && (data.error || data.message)) || `HTTP ${response.status}`;
+                    addDebugLog(`Endpoint ${ep} failed: ${message}`, 'warning');
+                    lastError = new Error(message);
+                } catch (err) {
+                    lastError = err;
+                    addDebugLog(`Endpoint ${ep} error: ${err.message}`, 'warning');
                 }
-
-                if (response.ok && data && data.base64) {
-                    // Handle optional base64 JSON format if provided
-                    const binary = atob(data.base64);
-                    const bytes = new Uint8Array(binary.length);
-                    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-                    const blob = new Blob([bytes.buffer], { type: 'application/octet-stream' });
-                    const filename = data.filename || `download_${Date.now()}.gpx`;
-                    const objectUrl = URL.createObjectURL(blob);
-
-                    addDebugLog(`Downloaded ${filename} (${(blob.size/1024).toFixed(2)} KB)`, 'success');
-
-                    const content = `
-                        <div style="display:flex;flex-direction:column;gap:12px;">
-                            <div><strong>URL:</strong> ${escapeHtml(url)}</div>
-                            <div><strong>Filename:</strong> ${escapeHtml(filename)}</div>
-                            <div><strong>Size:</strong> ${(blob.size/1024).toFixed(2)} KB</div>
-                            <div><strong>Duration:</strong> Unknown</div>
-                            <div style="margin-top:8px;">
-                                <a href="${objectUrl}" download="${escapeAttr(filename)}" class="download-btn">
-                                    <span>⬇️</span> Download File
-                                </a>
-                            </div>
-                            <div style="margin-top:8px;font-size:0.8rem;color:#5c6370;">
-                                <span>▶️</span> <span>🔍</span> Verbose Output
-                            </div>
-                        </div>
-                    `;
-                    showResult('Download Successful!', content, true);
-                } else {
-                    const message = (data && (data.error || data.message)) || 'Unknown error';
-                    addDebugLog(`Download failed: ${message}`, 'error');
-                    showResult('Download Failed', `<div style="color: #f44336;">${escapeHtml(message)}</div>`);
-                }
-            } catch (error) {
-                addDebugLog(`Network error: ${error.message}`, 'error');
-                showResult('Network Error', `<div style="color: #f44336;">Failed to connect to server: ${escapeHtml(error.message)}</div>`);
             }
+
+            const msg = lastError ? lastError.message : 'Unknown error';
+            addDebugLog(`Download failed: ${msg}`, 'error');
+            showResult('Download Failed', `<div style=\"color: #f44336;\">${escapeHtml(msg)}</div>`);
         }
 
         // Search function
         async function performSearch(query) {
             showLoading();
-            
             try {
-                const response = await fetch(`/.netlify/functions/search?query=${encodeURIComponent(query)}&limit=20`);
-                const data = await response.json();
-                
-                if (response.ok && data.results) {
-                    addDebugLog(`Found ${data.results.length} results`, 'success');
-                    showSearchResults(data.results);
+                const endpoints = [
+                    `/.netlify/functions/search?query=${encodeURIComponent(query)}&limit=20`,
+                    `/api/search?query=${encodeURIComponent(query)}&limit=20`
+                ];
+
+                let payload = null;
+                for (const ep of endpoints) {
+                    addDebugLog(`Trying search endpoint: ${ep}`, 'info');
+                    try {
+                        const res = await fetch(ep);
+                        const data = await res.json();
+                        if (res.ok && data && data.results) { payload = data; break; }
+                    } catch (_) { /* try next */ }
+                }
+
+                if (payload && payload.results) {
+                    addDebugLog(`Found ${payload.results.length} results`, 'success');
+                    showSearchResults(payload.results);
                 } else {
-                    addDebugLog(`Search failed: ${data.error || 'No results found'}`, 'warning');
-                    showResult('Search Failed', `<div style="color: #ff9800;">${escapeHtml(data.error || 'No results found')}</div>`);
+                    addDebugLog('Search failed: No results found', 'warning');
+                    showResult('Search Failed', `<div style="color: #ff9800;">No results found</div>`);
                 }
             } catch (error) {
                 addDebugLog(`Search error: ${error.message}`, 'error');
-                showResult('Search Error', `<div style="color: #f44336;">Failed to search: ${escapeHtml(error.message)}</div>`);
+                showResult('Search Error', `<div style=\"color: #f44336;\">Failed to search: ${escapeHtml(error.message)}</div>`);
             }
         }
 

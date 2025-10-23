@@ -17,7 +17,7 @@
     "build:functions": "node scripts/build-functions.js",
     "build:public": "node scripts/build-public.js",
     "build:static": "node scripts/build-static.js",
-    "build:netlify": "npm run build:functions && npm run build:static",
+    "build:netlify": "npm run build && npm run build:functions && npm run build:static",
     "build:react": "vite build",
     "dev:react": "vite",
     "start:react": "node src/web/server.js",

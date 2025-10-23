@@ -51,51 +51,56 @@ export const handler = async (event, _context) => {
 
     console.log(`Starting download for URL: ${url}`);
 
-    // Fetch the page content directly
-    const response = await fetch(url, {
+    // Fetch the page content directly (best-effort – UG pages may be protected)
+    const pageResponse = await fetch(url, {
       headers: {
         'User-Agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.5',
-        'Accept-Encoding': 'gzip, deflate, br',
         Connection: 'keep-alive',
-        'Upgrade-Insecure-Requests': '1',
+        Referer: url,
       },
+      redirect: 'follow',
     });
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch page: ${response.status}`);
+    if (!pageResponse.ok) {
+      throw new Error(`Failed to fetch page: ${pageResponse.status}`);
     }
 
-    const html = await response.text();
+    const html = await pageResponse.text();
     const $ = cheerio.load(html);
 
     // Look for download links in the page
     let downloadUrl = null;
     let filename = 'download.gpx';
 
-    // Try to find download links
-    const downloadLinks = $(
-      'a[href*="download"], a[href*="guitar-pro"], a[href*=".gpx"], a[href*=".gp5"]'
+    // Try to find download links in anchors or script data
+    const anchorLinks = $(
+      'a[href*="/download/public/"], a[href*=".gpx"], a[href*=".gp5"], a[href*="/tab/download/"], a[href*="/download/"]'
     );
-
-    if (downloadLinks.length > 0) {
-      const firstLink = downloadLinks.first();
-      downloadUrl = firstLink.attr('href');
-
-      // Make sure it's a full URL
+    if (anchorLinks.length > 0) {
+      const firstLink = anchorLinks.first();
+      downloadUrl = firstLink.attr('href') || null;
       if (downloadUrl && !downloadUrl.startsWith('http')) {
         downloadUrl = new URL(downloadUrl, url).href;
       }
-
-      // Extract filename from link text or href
-      const linkText = firstLink.text().trim();
-      if (linkText && linkText.includes('.')) {
+      const linkText = (firstLink.text() || '').trim();
+      if (linkText && /\.(?:gpx|gp5|gp)$/i.test(linkText)) {
         filename = linkText;
-      } else {
-        const urlParts = downloadUrl.split('/');
-        filename = urlParts[urlParts.length - 1] || 'download.gpx';
+      }
+    }
+
+    // Search scripts for download/public/<id> pattern
+    if (!downloadUrl) {
+      const scriptTags = $('script').toArray();
+      for (const script of scriptTags) {
+        const sc = $(script).html() || '';
+        const m = sc.match(/\/download\/public\/(\d+)/i);
+        if (m) {
+          downloadUrl = `https://tabs.ultimate-guitar.com/download/public/${m[1]}`;
+          break;
+        }
       }
     }
 
@@ -118,9 +123,9 @@ export const handler = async (event, _context) => {
 
     // If still no download URL, try to construct it from the tab ID
     if (!downloadUrl) {
-      const tabIdMatch = url.match(/tab\/([^/]+)\/([^/]+)-(\d+)/);
+      const tabIdMatch = url.match(/\/(?:tab|chords|bass|drum|ukulele|power|official)\/[^/]+\/[^/]+-(\d+)/i);
       if (tabIdMatch) {
-        const tabId = tabIdMatch[3];
+        const tabId = tabIdMatch[1];
         // Try common download URL patterns
         const possibleUrls = [
           `https://tabs.ultimate-guitar.com/download/public/${tabId}`,
@@ -131,15 +136,18 @@ export const handler = async (event, _context) => {
         for (const testUrl of possibleUrls) {
           try {
             const testResponse = await fetch(testUrl, {
-              method: 'HEAD',
+              method: 'GET',
+              redirect: 'follow',
               headers: {
                 'User-Agent':
                   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                 Referer: url,
+                Accept: 'application/octet-stream, application/x-guitar-pro, */*',
               },
             });
 
-            if (testResponse.ok) {
+            const type = testResponse.headers.get('content-type') || '';
+            if (testResponse.ok && /octet-stream|guitar|binary/i.test(type)) {
               downloadUrl = testUrl;
               break;
             }
@@ -167,6 +175,8 @@ export const handler = async (event, _context) => {
 
     // Download the file
     const downloadResponse = await fetch(downloadUrl, {
+      method: 'GET',
+      redirect: 'follow',
       headers: {
         'User-Agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',

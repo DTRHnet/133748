@@ -67,7 +67,6 @@ export const handler = async (event) => {
 
     // Try different selectors for search results
     const resultSelectors = [
-      '.js-store',
       '.search-results .result',
       '[data-testid="search-results"] .result',
       '.search-result',
@@ -150,38 +149,121 @@ export const handler = async (event) => {
       }
     }
 
-    // If no structured results found, try fallback approach
-    if (!foundResults || results.length === 0) {
-      console.log('No structured results found, trying fallback approach...');
+    // If no structured results found, try parsing embedded JSON store first
+    if (results.length === 0) {
+      try {
+        const stores = $('.js-store');
+        if (stores.length > 0) {
+          console.log(`Found ${stores.length} .js-store elements. Attempting to parse embedded data-content JSON...`);
+          const seen = new Set();
 
-      // Look for any links that might be tabs
+          const pushFromUrl = (candidateUrl) => {
+            if (!candidateUrl) return;
+            let url = candidateUrl;
+            if (!url.startsWith('http')) {
+              url = new URL(url, 'https://www.ultimate-guitar.com').href;
+            }
+            if (seen.has(url)) return;
+            seen.add(url);
+
+            // Derive artist, song, type from URL
+            const m = url.match(/\/([a-z0-9-]+)\/([a-z0-9-]+)\/?[^/]*-(\d+)/i);
+            // m[1] will be category like tab/chords/bass..., but we matched differently
+            const m2 = url.match(/\/(tab|chords|bass|drum|ukulele|power|official)\/([a-z0-9-]+)\/([a-z0-9-]+)(?:-([a-z0-9-]+))?-(\d+)/i);
+            let artist = 'Unknown Artist';
+            let songTitle = url;
+            let type = 'Tab';
+            if (m2) {
+              artist = m2[2].replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+              songTitle = m2[3].replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+              const version = m2[4] || m2[1];
+              if (version) {
+                if (version.includes('guitar-pro')) type = 'Guitar Pro';
+                else if (version.includes('official')) type = 'Official';
+                else if (version.includes('bass')) type = 'Bass Tab';
+                else if (version.includes('drum')) type = 'Drum Tab';
+                else if (version.includes('ukulele')) type = 'Ukulele Tab';
+                else if (version.includes('power')) type = 'Power Tab';
+                else if (version.includes('chords')) type = 'Chords';
+                else type = 'Tab';
+              }
+            }
+
+            results.push({
+              title: songTitle,
+              artist,
+              type,
+              rating: 'N/A',
+              votes: '0',
+              url,
+            });
+          };
+
+          const urlRegexAbs = /https?:\/\/(?:www\.)?ultimate-guitar\.com\/(?:tab|chords|bass|drum|ukulele|power|official)\/[^"'\s<>]+/gi;
+          const urlRegexRel = /\/(?:tab|chords|bass|drum|ukulele|power|official)\/[^"'\s<>]+/gi;
+
+          stores.each((i, el) => {
+            if (results.length >= limitNum) return false;
+            const raw = $(el).attr('data-content') || $(el).attr('data-store') || '';
+            // Decode common HTML entities
+            const decoded = raw
+              .replace(/&quot;/g, '"')
+              .replace(/&#x27;/g, '\'')
+              .replace(/&lt;/g, '<')
+              .replace(/&gt;/g, '>')
+              .replace(/&amp;/g, '&');
+
+            // Prefer robust regex extraction over brittle JSON shape
+            const absMatches = decoded.match(urlRegexAbs) || [];
+            const relMatches = decoded.match(urlRegexRel) || [];
+            const all = [...absMatches, ...relMatches];
+            for (const u of all) {
+              if (results.length >= limitNum) break;
+              if (!/\/(?:tab|chords|bass|drum|ukulele|power|official)\//i.test(u)) continue;
+              if (!/-\d+/.test(u)) continue; // ensure it has an ID
+              pushFromUrl(u);
+            }
+          });
+
+          if (results.length > 0) {
+            foundResults = true;
+          }
+        }
+      } catch (e) {
+        console.log('Failed to parse embedded js-store JSON:', e.message);
+      }
+    }
+
+    // If still no structured results found, try fallback approach: scan anchors in HTML
+    if (!foundResults || results.length === 0) {
+      console.log('No structured results found, trying fallback approach (scan anchors)...');
+
+      const seen = new Set(results.map((r) => r.url));
       $('a[href*="/tab/"]').each((index, element) => {
         if (results.length >= limitNum) return false;
 
         const $el = $(element);
         const title = $el.text().trim();
-        const url = $el.attr('href');
+        const href = $el.attr('href');
+        if (!href) return;
+        const fullUrl = href.startsWith('http')
+          ? href
+          : new URL(href, 'https://www.ultimate-guitar.com').href;
+        if (seen.has(fullUrl)) return;
 
-        if (title && url && title.length > 3) {
-          // Make sure URL is absolute
-          const fullUrl = url.startsWith('http')
-            ? url
-            : new URL(url, 'https://www.ultimate-guitar.com').href;
+        const parts = title.split(' - ');
+        const artist = parts.length > 1 ? parts[0].trim() : 'Unknown Artist';
+        const songTitle = parts.length > 1 ? parts.slice(1).join(' - ').trim() : title || 'Unknown';
 
-          // Try to extract artist and song from title
-          const parts = title.split(' - ');
-          const artist = parts.length > 1 ? parts[0].trim() : 'Unknown Artist';
-          const songTitle = parts.length > 1 ? parts.slice(1).join(' - ').trim() : title;
-
-          results.push({
-            title: songTitle,
-            artist: artist,
-            type: 'Tab',
-            rating: 'N/A',
-            votes: '0',
-            url: fullUrl,
-          });
-        }
+        results.push({
+          title: songTitle,
+          artist: artist,
+          type: 'Tab',
+          rating: 'N/A',
+          votes: '0',
+          url: fullUrl,
+        });
+        seen.add(fullUrl);
       });
     }
 
