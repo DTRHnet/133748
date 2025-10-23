@@ -37,25 +37,54 @@ export const handler = async (event) => {
     console.log(`Searching for: "${query}"`);
 
     // Launch browser with Netlify-optimized options
-    browser = await puppeteer.launch({
-      headless: 'new',
-      executablePath: process.env.CHROME_PATH || undefined, // Use Netlify's Chrome if available
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--single-process',
-        '--no-zygote',
-        '--disable-web-security',
-        '--disable-features=VizDisplayCompositor',
-        '--memory-pressure-off',
-        '--max_old_space_size=1024',
-        '--disable-background-timer-throttling',
-        '--disable-backgrounding-occluded-windows',
-        '--disable-renderer-backgrounding',
-      ],
-    });
+    const chromePaths = [
+      '/opt/chrome-linux/chrome', // Netlify's actual Chrome path
+      '/opt/chrome/chrome', // Alternative Netlify path
+      process.env.CHROME_PATH, // Environment variable
+      undefined, // Let Puppeteer find its own Chrome
+    ];
+
+    let lastError;
+
+    for (const chromePath of chromePaths) {
+      try {
+        console.log(`Trying Chrome path: ${chromePath || 'default'}`);
+        browser = await puppeteer.launch({
+          headless: 'new',
+          executablePath: chromePath,
+          args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--single-process',
+            '--no-zygote',
+            '--disable-web-security',
+            '--disable-features=VizDisplayCompositor',
+            '--memory-pressure-off',
+            '--max_old_space_size=1024',
+            '--disable-background-timer-throttling',
+            '--disable-backgrounding-occluded-windows',
+            '--disable-renderer-backgrounding',
+          ],
+        });
+        console.log(`Successfully launched Chrome with path: ${chromePath || 'default'}`);
+        break;
+      } catch (error) {
+        console.log(
+          `Failed to launch Chrome with path ${chromePath || 'default'}: ${error.message}`
+        );
+        lastError = error;
+        if (browser) {
+          await browser.close();
+          browser = null;
+        }
+      }
+    }
+
+    if (!browser) {
+      throw new Error(`Failed to launch Chrome with any path. Last error: ${lastError?.message}`);
+    }
 
     const page = await browser.newPage();
 

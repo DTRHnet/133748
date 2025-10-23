@@ -19,7 +19,7 @@
   NODE_ENV = "production"
   
   # Chrome/Chromium Settings (Netlify provides Chrome)
-  CHROME_PATH = "/opt/chrome/chrome"
+  CHROME_PATH = "/opt/chrome-linux/chrome"
   
   # Ultimate Guitar Settings
   UG_BASE_URL = "https://www.ultimate-guitar.com"
