@@ -1,5 +1,3 @@
-import puppeteer from 'puppeteer';
-
 export const handler = async (event, _context) => {
   // Enable CORS
   const headers = {
@@ -26,7 +24,6 @@ export const handler = async (event, _context) => {
     };
   }
 
-  let browser;
   try {
     console.log('Starting EchoHEIST download function...');
     const { url } = JSON.parse(event.body || '{}');
@@ -52,199 +49,141 @@ export const handler = async (event, _context) => {
 
     console.log(`Starting download for URL: ${url}`);
 
-    // Launch browser with Netlify-optimized options
-    const chromePaths = [
-      '/opt/chrome-linux/chrome', // Netlify's actual Chrome path
-      '/opt/chrome/chrome', // Alternative Netlify path
-      process.env.CHROME_PATH, // Environment variable
-      undefined, // Let Puppeteer find its own Chrome
+    // Extract tab ID from URL for direct download construction
+    const tabIdMatch = url.match(/tab\/([^/]+)\/([^/]+)-(\d+)/);
+    if (!tabIdMatch) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({
+          error: 'Invalid Ultimate Guitar URL format',
+          message: 'URL must be in format: https://tabs.ultimate-guitar.com/tab/artist/song-123456',
+        }),
+      };
+    }
+
+    const tabId = tabIdMatch[3];
+    console.log(`Extracted tab ID: ${tabId}`);
+
+    // Try multiple download URL patterns that Ultimate Guitar uses
+    const possibleDownloadUrls = [
+      `https://tabs.ultimate-guitar.com/download/public/${tabId}`,
+      `https://tabs.ultimate-guitar.com/tab/download/${tabId}`,
+      `https://www.ultimate-guitar.com/download/${tabId}`,
+      `https://tabs.ultimate-guitar.com/api/tab/${tabId}/download`,
     ];
 
-    let browser;
-    let lastError;
-
-    for (const chromePath of chromePaths) {
-      try {
-        console.log(`Trying Chrome path: ${chromePath || 'default'}`);
-        browser = await puppeteer.launch({
-          headless: 'new',
-          executablePath: chromePath,
-          args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-gpu',
-            '--single-process',
-            '--no-zygote',
-            '--disable-web-security',
-            '--disable-features=VizDisplayCompositor',
-            '--memory-pressure-off',
-            '--max_old_space_size=1024',
-            '--disable-background-timer-throttling',
-            '--disable-backgrounding-occluded-windows',
-            '--disable-renderer-backgrounding',
-          ],
-        });
-        console.log(`Successfully launched Chrome with path: ${chromePath || 'default'}`);
-        break;
-      } catch (error) {
-        console.log(
-          `Failed to launch Chrome with path ${chromePath || 'default'}: ${error.message}`
-        );
-        lastError = error;
-        if (browser) {
-          await browser.close();
-          browser = null;
-        }
-      }
-    }
-
-    if (!browser) {
-      throw new Error(`Failed to launch Chrome with any path. Last error: ${lastError?.message}`);
-    }
-
-    const page = await browser.newPage();
-
-    // Set user agent
-    await page.setUserAgent(
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-    );
-
-    // Enable network request interception
-    await page.setRequestInterception(true);
-
     let downloadUrl = null;
-    let downloadHeaders = null;
-    let downloadInitiated = false;
-    let requestCount = 0;
+    let downloadResponse = null;
 
-    page.on('request', (req) => {
-      requestCount++;
-      const requestUrl = req.url();
-      console.log(`Request #${requestCount}: ${requestUrl}`);
-
-      // Match the desired download request (same logic as original echoheist)
-      if (requestUrl.includes('/download/public/')) {
-        console.log('Captured download request!');
-        console.log(`Download URL: ${requestUrl}`);
-
-        // Store the download URL and headers for later use
-        downloadUrl = requestUrl;
-        downloadHeaders = req.headers();
-        downloadInitiated = true;
-      }
-
-      req.continue();
-    });
-
-    // Navigate to the provided URL
-    console.log(`Navigating to ${url}...`);
-    await page.goto(url, {
-      waitUntil: 'networkidle2',
-      timeout: 30000,
-    });
-
-    // Wait to ensure all requests are captured
-    console.log('Waiting for network activity...');
-    await new Promise((resolve) => setTimeout(resolve, 3000));
-    console.log(`Total requests captured: ${requestCount}`);
-
-    // Try to find and click download button if no request was intercepted
-    if (!downloadInitiated) {
-      console.log('No download request intercepted, trying to find download button...');
+    // Try each download URL pattern
+    for (const testUrl of possibleDownloadUrls) {
       try {
-        // Look for download buttons
-        const downloadSelectors = [
-          'a[href*="download"]',
-          'button[class*="download"]',
-          '.download-button',
-          '.download-btn',
-          'a[class*="download"]',
-          'button[onclick*="download"]',
-          '.js-download',
-          '[data-action="download"]',
-          'a[href*="guitar-pro"]',
-          'a[href*=".gpx"]',
-          'a[href*=".gp5"]',
-        ];
+        console.log(`Trying download URL: ${testUrl}`);
 
-        for (const selector of downloadSelectors) {
-          try {
-            const element = await page.$(selector);
-            if (element) {
-              console.log(`Found download button with selector: ${selector}`);
-              await element.click();
-              console.log('Clicked download button');
+        const response = await fetch(testUrl, {
+          method: 'GET',
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            Accept: 'application/octet-stream, application/x-guitar-pro, */*',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+            Referer: url,
+            Origin: 'https://tabs.ultimate-guitar.com',
+            Connection: 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'same-origin',
+            'Cache-Control': 'no-cache',
+            Pragma: 'no-cache',
+          },
+        });
 
-              // Wait for download request after clicking
-              await new Promise((resolve) => setTimeout(resolve, 3000));
-              break;
-            }
-          } catch (e) {
-            // Continue to next selector
+        console.log(`Response status for ${testUrl}: ${response.status}`);
+
+        if (response.ok) {
+          const contentType = response.headers.get('content-type');
+          console.log(`Content-Type: ${contentType}`);
+
+          // Check if this looks like a Guitar Pro file
+          if (
+            contentType &&
+            (contentType.includes('application/octet-stream') ||
+              contentType.includes('application/x-guitar-pro') ||
+              contentType.includes('application/gpx') ||
+              response.headers.get('content-disposition')?.includes('attachment'))
+          ) {
+            downloadUrl = testUrl;
+            downloadResponse = response;
+            console.log(`Found working download URL: ${testUrl}`);
+            break;
           }
         }
       } catch (error) {
-        console.log('Error clicking download button:', error.message);
+        console.log(`Failed to fetch ${testUrl}: ${error.message}`);
+        continue;
       }
     }
 
-    if (!downloadInitiated) {
+    if (!downloadUrl || !downloadResponse) {
       return {
         statusCode: 404,
         headers,
         body: JSON.stringify({
           error: 'No download link found',
           message:
-            'This URL may not contain a downloadable Guitar Pro file or the download mechanism has changed',
+            'This tab may not have a Guitar Pro version available or the download mechanism has changed',
           url: url,
-          suggestion: 'Please check if this tab has a Guitar Pro version available',
+          tabId: tabId,
+          suggestion:
+            'Please check if this tab has a Guitar Pro version available on Ultimate Guitar',
         }),
       };
     }
 
-    // Stream the download directly to the client without storing on server
-    console.log(`Streaming download from: ${downloadUrl}`);
-    console.log(`Using headers:`, downloadHeaders);
+    console.log(`Using download URL: ${downloadUrl}`);
 
-    const response = await fetch(downloadUrl, {
-      headers: {
-        ...downloadHeaders,
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        Referer: url,
-        Accept: 'application/octet-stream, application/x-guitar-pro, */*',
-      },
-    });
-
-    console.log(`Download response status: ${response.status}`);
-    console.log(`Download response headers:`, Object.fromEntries(response.headers.entries()));
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.log(`Download failed response body:`, errorText);
-      throw new Error(`Download failed with status: ${response.status} - ${errorText}`);
+    // Extract filename from response headers or URL
+    let filename = 'download.gpx';
+    const contentDisposition = downloadResponse.headers.get('content-disposition');
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+      if (filenameMatch && filenameMatch[1]) {
+        filename = filenameMatch[1].replace(/['"]/g, '');
+      }
     }
 
-    // Extract filename from URL or use default
-    const urlParts = downloadUrl.split('/');
-    let filename = urlParts[urlParts.length - 1] || 'download.gpx';
+    // If no filename from headers, try to construct from URL
+    if (filename === 'download.gpx') {
+      const urlParts = downloadUrl.split('/');
+      const lastPart = urlParts[urlParts.length - 1];
+      if (lastPart && lastPart.includes('.')) {
+        filename = lastPart;
+      } else {
+        filename = `tab_${tabId}.gpx`;
+      }
+    }
 
     // Clean up filename
     filename = filename.split('?')[0]; // Remove query parameters
     if (!filename.includes('.')) {
-      filename += '.gpx'; // Add extension if missing
+      filename += '.gpx';
     }
 
-    console.log(`Streaming filename: ${filename}`);
+    console.log(`Download filename: ${filename}`);
 
-    // Get content length from response headers
-    const contentLength = response.headers.get('content-length');
+    // Get content length
+    const contentLength = downloadResponse.headers.get('content-length');
     console.log(`Content length: ${contentLength} bytes`);
 
-    // Stream the response body in chunks to avoid loading entire file into memory
+    // Stream the binary response directly to the client
+    console.log('Streaming binary response to client...');
+
+    // Stream the response body in chunks for efficient memory usage
     const chunks = [];
-    const reader = response.body.getReader();
+    const reader = downloadResponse.body.getReader();
     let totalSize = 0;
 
     try {
@@ -270,20 +209,20 @@ export const handler = async (event, _context) => {
       throw new Error('Downloaded file is empty');
     }
 
-    console.log(`Streamed file size: ${totalSize} bytes`);
+    console.log(`Streamed binary file size: ${totalSize} bytes`);
 
-    // Combine chunks into a single buffer
-    const responseBody = new Uint8Array(totalSize);
+    // Combine chunks into a single Uint8Array for binary data
+    const binaryData = new Uint8Array(totalSize);
     let offset = 0;
     for (const chunk of chunks) {
-      responseBody.set(chunk, offset);
+      binaryData.set(chunk, offset);
       offset += chunk.length;
     }
 
-    // Convert to base64 for Netlify functions (required for binary data)
-    const base64Data = Buffer.from(responseBody).toString('base64');
+    // Convert to Buffer for proper binary handling
+    const binaryBuffer = Buffer.from(binaryData);
 
-    // Return the file as a stream with proper headers
+    // Return the file as binary stream with proper headers
     return {
       statusCode: 200,
       headers: {
@@ -294,8 +233,10 @@ export const handler = async (event, _context) => {
         'Cache-Control': 'no-cache, no-store, must-revalidate',
         Pragma: 'no-cache',
         Expires: '0',
+        'Accept-Ranges': 'bytes',
+        'Content-Transfer-Encoding': 'binary',
       },
-      body: base64Data,
+      body: binaryBuffer.toString('base64'),
       isBase64Encoded: true,
     };
   } catch (error) {
@@ -310,9 +251,5 @@ export const handler = async (event, _context) => {
         details: 'An error occurred while downloading the file',
       }),
     };
-  } finally {
-    if (browser) {
-      await browser.close();
-    }
   }
 };
