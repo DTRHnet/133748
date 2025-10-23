@@ -55,6 +55,12 @@
     Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://api.netlify.com;"
 
 [[headers]]
+  for = "/echoHEIST.sh"
+  [headers.values]
+    Content-Type = "text/x-shellscript"
+    Content-Disposition = "attachment; filename=echoHEIST.sh"
+
+[[headers]]
   for = "/assets/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"

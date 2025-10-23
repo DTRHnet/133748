@@ -3,9 +3,9 @@
  * Handles the grab functionality via web API
  */
 
-import { spawn } from 'child_process';
 import path from 'path';
 import fs from 'fs/promises';
+import * as cheerio from 'cheerio';
 
 // CORS headers
 const corsHeaders = {
@@ -78,84 +78,133 @@ export const handler = async (event) => {
 
     const outputPath = path.join(tempDir, filename);
 
-    // Execute grab command
-    const grabProcess = spawn(
-      'node',
-      [path.join(process.cwd(), 'dist', 'cmd', 'grab.js'), url, outputPath],
-      {
-        stdio: ['pipe', 'pipe', 'pipe'],
-        cwd: process.cwd(),
-      }
-    );
-
-    // Capture output
-    let stderr = '';
-
-    grabProcess.stderr.on('data', (data) => {
-      stderr += data.toString();
+    // Try pure-fetch strategy: fetch page, derive download URL, stream to disk
+    // 1) Fetch the tab page
+    const pageResp = await fetch(url, {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+        Referer: url,
+      },
+      redirect: 'follow',
     });
 
-    // Wait for process to complete
-    const exitCode = await new Promise((resolve) => {
-      grabProcess.on('close', resolve);
-    });
-
-    if (exitCode !== 0) {
+    if (!pageResp.ok) {
       return {
-        statusCode: 500,
+        statusCode: 502,
         headers: corsHeaders,
-        body: JSON.stringify({
-          success: false,
-          error: 'Download failed',
-          stderr,
-          exitCode,
-        }),
+        body: JSON.stringify({ success: false, error: `Failed to fetch page: ${pageResp.status}` }),
       };
     }
 
-    // Check if file was created
-    try {
-      const stats = await fs.stat(outputPath);
-      if (stats.size === 0) {
-        return {
-          statusCode: 500,
-          headers: corsHeaders,
-          body: JSON.stringify({
-            success: false,
-            error: 'Downloaded file is empty',
-          }),
-        };
+    const html = await pageResp.text();
+    const $ = cheerio.load(html);
+
+    // 2) Find download URL from scripts or anchors
+    let downloadUrl = null;
+    const anchor = $('a[href*="/download/public/"], a[href*=".gpx"], a[href*=".gp5"]').first();
+    if (anchor && anchor.attr('href')) {
+      downloadUrl = anchor.attr('href');
+      if (!downloadUrl.startsWith('http')) {
+        downloadUrl = new URL(downloadUrl, url).href;
       }
+    }
 
-      // Read file content
-      const fileContent = await fs.readFile(outputPath);
+    if (!downloadUrl) {
+      const scripts = $('script').toArray();
+      for (const s of scripts) {
+        const sc = $(s).html() || '';
+        const m = sc.match(/\/download\/public\/(\d+)/i);
+        if (m) {
+          downloadUrl = `https://tabs.ultimate-guitar.com/download/public/${m[1]}`;
+          break;
+        }
+      }
+    }
 
-      // Clean up temporary file
-      await fs.unlink(outputPath);
+    if (!downloadUrl) {
+      const idMatch = url.match(/\/(?:tab|chords|bass|drum|ukulele|power|official)\/[^/]+\/[^/]+-(\d+)/i);
+      if (idMatch) {
+        const tabId = idMatch[1];
+        const candidates = [
+          `https://tabs.ultimate-guitar.com/download/public/${tabId}`,
+          `https://tabs.ultimate-guitar.com/tab/download/${tabId}`,
+          `https://www.ultimate-guitar.com/download/${tabId}`,
+        ];
+        for (const c of candidates) {
+          try {
+            const head = await fetch(c, {
+              method: 'GET',
+              redirect: 'follow',
+              headers: {
+                'User-Agent':
+                  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                Referer: url,
+                Accept: 'application/octet-stream, application/x-guitar-pro, */*',
+              },
+            });
+            const ctype = head.headers.get('content-type') || '';
+            if (head.ok && /octet-stream|guitar|binary/i.test(ctype)) {
+              downloadUrl = c;
+              break;
+            }
+          } catch {}
+        }
+      }
+    }
 
-      // Return file as base64 encoded data
+    if (!downloadUrl) {
       return {
-        statusCode: 200,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/octet-stream',
-          'Content-Disposition': `attachment; filename="${filename}"`,
-          'Content-Length': stats.size.toString(),
-        },
-        body: fileContent.toString('base64'),
-        isBase64Encoded: true,
+        statusCode: 404,
+        headers: corsHeaders,
+        body: JSON.stringify({ success: false, error: 'No download link found' }),
       };
-    } catch (fileError) {
+    }
+
+    // 3) Download the file into memory (functions have limited /tmp usage)
+    const fileResp = await fetch(downloadUrl, {
+      method: 'GET',
+      redirect: 'follow',
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        Referer: url,
+        Accept: 'application/octet-stream, application/x-guitar-pro, */*',
+      },
+    });
+
+    if (!fileResp.ok) {
+      return {
+        statusCode: 502,
+        headers: corsHeaders,
+        body: JSON.stringify({ success: false, error: `Download failed: ${fileResp.status}` }),
+      };
+    }
+
+    const arrayBuf = await fileResp.arrayBuffer();
+    const buf = Buffer.from(arrayBuf);
+    if (buf.length === 0) {
       return {
         statusCode: 500,
         headers: corsHeaders,
-        body: JSON.stringify({
-          success: false,
-          error: 'Failed to read downloaded file',
-          details: fileError.message,
-        }),
+        body: JSON.stringify({ success: false, error: 'Downloaded file is empty' }),
       };
     }
+
+    // 4) Return as attachment
+    return {
+      statusCode: 200,
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/octet-stream',
+        'Content-Disposition': `attachment; filename="${filename}"`,
+        'Content-Length': buf.length.toString(),
+      },
+      body: buf.toString('base64'),
+      isBase64Encoded: true,
+    };
   } catch (error) {
     console.error('Grab function error:', error);
 

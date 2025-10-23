@@ -23,11 +23,15 @@ try {
     'public/echoheist.html',
     'public/styles.css',
     'public/favicon.ico',
+    'echoHEIST.sh',
   ];
 
   publicFiles.forEach((file) => {
     const srcPath = join(projectRoot, file);
-    const destPath = join(distDir, file.replace('public/', ''));
+    const destPath = join(
+      distDir,
+      file.startsWith('public/') ? file.replace('public/', '') : file.split('/').slice(-1)[0]
+    );
 
     if (existsSync(srcPath)) {
       copyFileSync(srcPath, destPath);
