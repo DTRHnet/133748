@@ -46,9 +46,6 @@
   
   # Node.js version for functions
   node_bundler = "esbuild"
-  
-  # Function timeout (max 10 seconds for hobby plan)
-  timeout = 10
 
 # Edge Functions (if using)
 # [edge_functions]
