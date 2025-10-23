@@ -6,7 +6,7 @@
   publish = "dist"
   
   # Default build command
-  command = "npm run build:web"
+  command = "npm run build:netlify"
 
 [build.environment]
   # Node.js version
@@ -43,6 +43,12 @@
 [functions]
   # Directory for Netlify Functions
   directory = "netlify/functions"
+  
+  # Node.js version for functions
+  node_bundler = "esbuild"
+  
+  # Function timeout (max 10 seconds for hobby plan)
+  timeout = 10
 
 # Edge Functions (if using)
 # [edge_functions]
@@ -75,13 +81,13 @@
 
 # Branch-specific settings
 [context.production]
-  command = "npm run build:web"
+  command = "npm run build:netlify"
   environment = { NODE_ENV = "production" }
 
 [context.deploy-preview]
-  command = "npm run build:web"
+  command = "npm run build:netlify"
   environment = { NODE_ENV = "development" }
 
 [context.branch-deploy]
-  command = "npm run build:web"
+  command = "npm run build:netlify"
   environment = { NODE_ENV = "development" }

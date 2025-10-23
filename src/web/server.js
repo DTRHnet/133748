@@ -18,6 +18,11 @@ app.use(express.urlencoded({ extended: true }));
 // Serve static files from the dist directory
 app.use(express.static(path.join(__dirname, '../../dist')));
 
+// Serve the echoheist.html file specifically
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, '../../dist/echoheist.html'));
+});
+
 // API endpoint for echoHEIST
 app.post('/api/echoheist', async (req, res) => {
   try {

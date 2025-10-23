@@ -1,9 +1,8 @@
-import { spawn } from 'child_process';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import puppeteer from 'puppeteer-extra';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+// Use stealth plugin to avoid detection
+puppeteer.use(StealthPlugin());
 
 export const handler = async (event, _context) => {
   // Enable CORS
@@ -31,6 +30,7 @@ export const handler = async (event, _context) => {
     };
   }
 
+  let browser;
   try {
     const { url } = JSON.parse(event.body || '{}');
 
@@ -53,89 +53,130 @@ export const handler = async (event, _context) => {
       };
     }
 
-    // Get the echoHEIST script path
-    const echoHeistPath = join(__dirname, '../../echoHEIST.sh');
+    console.log(`Starting download for URL: ${url}`);
 
-    // Execute echoHEIST script
-    const result = await new Promise((resolve, reject) => {
-      const child = spawn('bash', [echoHeistPath, url], {
-        cwd: join(__dirname, '../..'),
-        stdio: ['pipe', 'pipe', 'pipe'],
-      });
-
-      let stdout = '';
-      let stderr = '';
-
-      child.stdout.on('data', (data) => {
-        stdout += data.toString();
-      });
-
-      child.stderr.on('data', (data) => {
-        stderr += data.toString();
-      });
-
-      child.on('close', (code) => {
-        if (code === 0) {
-          resolve({ stdout, stderr });
-        } else {
-          reject(new Error(`echoHEIST failed with code ${code}: ${stderr}`));
-        }
-      });
-
-      child.on('error', (error) => {
-        reject(new Error(`Failed to execute echoHEIST: ${error.message}`));
-      });
+    // Launch browser with serverless-optimized options
+    browser = await puppeteer.launch({
+      headless: 'new',
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--disable-gpu',
+        '--disable-web-security',
+        '--disable-features=VizDisplayCompositor',
+        '--single-process',
+        '--memory-pressure-off',
+        '--max_old_space_size=4096',
+      ],
     });
 
-    // Parse the output to extract file information
-    const output = result.stdout;
-    const lines = output.split('\n');
+    const page = await browser.newPage();
 
-    // Look for download success indicators
-    const downloadLine = lines.find(
-      (line) =>
-        line.includes('Downloaded:') || line.includes('File saved:') || line.includes('Success:')
+    // Set user agent
+    await page.setUserAgent(
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     );
 
-    if (!downloadLine) {
+    // Enable network request interception
+    await page.setRequestInterception(true);
+
+    let downloadUrl = null;
+    let downloadHeaders = null;
+    let downloadInitiated = false;
+
+    page.on('request', (req) => {
+      const requestUrl = req.url();
+
+      // Look for download requests
+      if (
+        requestUrl.includes('/download/public/') ||
+        requestUrl.includes('.gpx') ||
+        requestUrl.includes('.gp5') ||
+        requestUrl.includes('.gp4') ||
+        requestUrl.includes('.gp3')
+      ) {
+        console.log(`Captured download request: ${requestUrl}`);
+        downloadUrl = requestUrl;
+        downloadHeaders = req.headers();
+        downloadInitiated = true;
+
+        // Abort the request since we'll handle it ourselves
+        req.abort();
+      } else {
+        req.continue();
+      }
+    });
+
+    // Navigate to the provided URL
+    console.log(`Navigating to ${url}...`);
+    await page.goto(url, {
+      waitUntil: 'networkidle2',
+      timeout: 30000,
+    });
+
+    // Wait a bit for any dynamic requests
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+
+    if (!downloadInitiated) {
       return {
-        statusCode: 500,
+        statusCode: 404,
         headers,
         body: JSON.stringify({
-          error: 'Download failed - no file was downloaded',
-          debug: output,
+          error: 'No download link found',
+          message: 'This URL may not contain a downloadable Guitar Pro file',
+          url: url,
         }),
       };
     }
 
-    // Extract filename from the output
-    const filenameMatch = downloadLine.match(/(?:Downloaded:|File saved:|Success:)\s*(.+)/);
-    const filename = filenameMatch ? filenameMatch[1].trim() : 'download';
+    // Download the file using the captured URL and headers
+    console.log(`Downloading file from: ${downloadUrl}`);
 
-    // For now, we'll return success with the filename
-    // In a real implementation, you'd need to handle file serving
+    const response = await fetch(downloadUrl, {
+      headers: downloadHeaders,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Download failed with status: ${response.status}`);
+    }
+
+    const fileBuffer = await response.arrayBuffer();
+    const base64Data = Buffer.from(fileBuffer).toString('base64');
+
+    // Extract filename from URL or use default
+    const urlParts = downloadUrl.split('/');
+    const filename = urlParts[urlParts.length - 1] || 'download.gpx';
+
     return {
       statusCode: 200,
-      headers,
-      body: JSON.stringify({
-        success: true,
-        originalUrl: url,
-        filename: filename,
-        fileSize: 'Unknown', // Would need to get actual file size
-        duration: 'Unknown', // Would need to extract from file
-        message: 'File downloaded successfully',
-        downloadUrl: null, // Would need to implement file serving
-      }),
+      headers: {
+        ...headers,
+        'Content-Type': 'application/octet-stream',
+        'Content-Disposition': `attachment; filename="${filename}"`,
+        'Content-Length': fileBuffer.byteLength.toString(),
+      },
+      body: base64Data,
+      isBase64Encoded: true,
     };
   } catch (error) {
-    console.error('echoHEIST API error:', error);
+    console.error('EchoHEIST download error:', error);
 
     return {
       statusCode: 500,
       headers,
       body: JSON.stringify({
-        error: error.message || 'Internal server error',
+        error: 'Download failed',
+        message: error.message,
+        details: 'An error occurred while downloading the file',
       }),
     };
+  } finally {
+    if (browser) {
+      await browser.close();
+    }
   }
 };
