@@ -1,7 +1,7 @@
 import { debug, info, error } from '../pkg/logger.js';
 import { searchAndPaginate } from '../internal/scraper/index.js';
 import { APP_INFO } from '../pkg/constants.js';
-import { renderTui } from '../tui/SearchTui.js';
+import { renderTui } from '../tui/SearchTui.jsx';
 
 /**
  * Handles the 'search' command.
