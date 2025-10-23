@@ -1,239 +1,698 @@
-# 133748
+# 🎸 EchoHEIST - Ultimate Guitar Tab Downloader
 
-_A CLI/Webapp which leverages [my replay attack PoC](https://github.com/DTRHnet/Bug-Bounty-Disclosures/blob/main/%5Bdtrh.net%5D-vuln.01-ultimate-guitar.com.pdf) in a user friendly way. It allows for authentication bypass via broken access control on UG for easy and ad free guitar pro files, including search function and batch downloading.. 133748 = **“leetab”** or **“elitetab”**)._
+[![Version](https://img.shields.io/badge/version-0.2.0--alpha--04-blue.svg)](https://github.com/DTRHnet/133748)
+[![Node.js](https://img.shields.io/badge/node.js-18%2B-green.svg)](https://nodejs.org/)
+[![License](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
 
----
+**EchoHEIST** is a powerful web application that bypasses authentication walls on Ultimate Guitar to download Guitar Pro files directly. It features a modern web interface with real-time progress tracking and verbose output.
 
-## Description
+## 🌟 Features
 
-**133748** is a powerful CLI for searching, previewing, and downloading Ultimate Guitar tabs. It offers lightning-fast search, multiple output formats, and an interactive Terminal User Interface (TUI) that feels right at home in your shell.
+- 🌐 **Web-based Interface** - Modern, responsive design that works on all devices
+- 📊 **Real-time Progress Tracking** - Live updates via WebSocket showing every step
+- 🔍 **Verbose Logging** - Detailed step-by-step output of the download process
+- 📱 **Mobile Optimized** - Fully responsive design with touch-friendly interface
+- 🚀 **One-Click Installation** - Automated setup scripts for all operating systems
+- 📥 **Automatic File Serving** - Direct download links when files are ready
+- 🔧 **Cross-Platform** - Works on Windows, macOS, and Linux
 
----
+## 🚀 Quick Start
 
-## Features
-
-### 🔍 Comprehensive Search
-
-Quickly locate tabs for any artist or song on Ultimate Guitar.
-
-### 📦 Multiple Output Formats
-
-- **Hierarchical Plain Text** (default) – neatly organized console output.
-- **JSON** – perfect for piping into scripts (`--json`).
-- **Interactive TUI** – a full-screen, keyboard-driven explorer (`--tui`).
-
-### 🖥️ TUI Highlights
-
-- **Guitar Pro Filter** – only shows results whose URLs contain `guitar-pro`.
-- **Arrow-Key Navigation** – Up/Down/Left/Right to move.
-- **Expand / Collapse** – drill into Artists ▸ Songs ▸ Tab Types.
-- **Dynamic Sorting** – press  
-  1️⃣ *Type* 2️⃣ *Artist* 3️⃣ *Song* 4️⃣ _Tab Type_
-- **Toggle Current Level** – `[a]` expands / collapses everything at the current depth.
-- **Open URLs** – `Enter` or `→` opens the tab in your browser.
-- **Select for Download** – `Space` marks items; **`d`** downloads all marked tabs via `echoHEIST.sh`.
-- **Quit** – `q` or `Esc`.
-
-### 📥 Direct Tab Grabber
-
-`grab` command lets you download a single Guitar Pro tab from its URL.
-
-### ⚙️ Configurable
-
-Reads `config/default.yml` for user-tunable settings (if present).
-
----
-
-## Installation
-
-### Quick Start (Recommended)
+### Option 1: Universal Launcher (Recommended)
 
 ```bash
-# 1. Clone the repo
-git clone https://github.com/DTRHnet/133748
-cd 133748
-
-# 2. Run the automated setup (installs dependencies, builds, and configures)
-npm install
-# OR manually run: node setup.js
-
-# 3. You're ready to go!
+# Works on all operating systems
+chmod +x launch.sh
+./launch.sh
 ```
 
-### Manual Installation
+### Option 2: OS-Specific Scripts
+
+#### Windows
+
+```cmd
+# Command Prompt
+install.bat
+run.bat
+
+# PowerShell
+.\install.ps1
+.\run.ps1
+```
+
+#### macOS/Linux
 
 ```bash
-# 1. Clone the repo
-git clone https://github.com/DTRHnet/133748
-cd 133748
+# Make scripts executable
+chmod +x install.sh run.sh
 
-# 2. Install dependencies
+# Install and run
+./install.sh
+./run.sh
+```
+
+### Option 3: Manual Installation
+
+```bash
+# Install dependencies
 npm install
 
-# 3. Build the project
+# Build the project
 npm run build
 
-# 4. Run setup to configure the application
-node setup.js
+# Start the web app
+npm run web
 ```
+
+## 📋 Prerequisites
+
+### Required
+
+- **Node.js 18+** - Download from [nodejs.org](https://nodejs.org/)
+- **npm** - Comes with Node.js
+
+### Recommended
+
+- **Chrome/Chromium** - For better performance (Puppeteer will use bundled Chromium if not found)
+
+## 🎯 Usage
+
+### Web Interface
+
+1. **Start the app** using any of the methods above
+2. **Open your browser** to `http://localhost:3000`
+3. **Paste a URL** - Enter any Ultimate Guitar Guitar Pro tab URL
+4. **Watch progress** - See real-time verbose output of the download process
+5. **Download file** - Get your Guitar Pro file when complete
+
+### Example URLs
+
+```
+https://tabs.ultimate-guitar.com/tab/metallica/one-guitar-pro-54157
+https://tabs.ultimate-guitar.com/tab/dream-theater/pull-me-under-guitar-pro-123456
+https://tabs.ultimate-guitar.com/tab/plini/every-piece-matters-guitar-pro-789012
+```
+
+## 💡 Usage Examples
+
+### Web App Examples
+
+```bash
+# Start web app
+npm run web
+# Open http://localhost:3000 in browser
+# Paste any Ultimate Guitar Guitar Pro URL
+```
+
+### CLI Examples
+
+#### Basic Search
+
+```bash
+# Search for Metallica tabs
+node dist/index.js search "metallica"
+
+# Search for specific song
+node dist/index.js search "metallica one"
+
+# Search with multiple words
+node dist/index.js search "dream theater pull me under"
+```
+
+#### Advanced Search
+
+```bash
+# Search with JSON output for scripting
+node dist/index.js search "plini" --json | jq '.[0].url'
+
+# Limit search to 3 pages
+node dist/index.js search "tool" --max-pages 3
+
+# Verbose output for debugging
+node dist/index.js search "opeth" --verbose
+```
+
+#### Interactive TUI
+
+```bash
+# Launch interactive mode
+node dist/index.js search "progressive metal" --tui
+
+# Navigate with arrow keys, mark items with space, download with 'd'
+```
+
+#### Direct Downloads
+
+```bash
+# Download a specific tab
+node dist/index.js grab "https://tabs.ultimate-guitar.com/tab/metallica/one-guitar-pro-54157"
+
+# Download to custom directory
+node dist/index.js grab "URL" --output ~/Music/GuitarPro
+
+# Download with verbose logging
+node dist/index.js grab "URL" --verbose
+```
+
+#### Batch Operations
+
+```bash
+# Search and save results to file
+node dist/index.js search "jazz fusion" --json > jazz_tabs.json
+
+# Process results with other tools
+node dist/index.js search "metal" --json | grep "Guitar Pro" | jq -r '.url' | while read url; do
+    node dist/index.js grab "$url"
+done
+```
+
+#### Configuration Examples
+
+```bash
+# Use custom config file
+node dist/index.js search "query" --config ~/.config/my_133748.conf
+
+# Set log level via environment
+LOG_LEVEL=debug node dist/index.js search "query"
+
+# Set custom output directory
+OUTPUT_DIR=~/Downloads/Tabs node dist/index.js grab "URL"
+```
+
+### Original Shell Script Examples
+
+```bash
+# Make executable
+chmod +x echoHEIST.sh
+
+# Download a tab
+./echoHEIST.sh "https://tabs.ultimate-guitar.com/tab/metallica/one-guitar-pro-54157"
+
+# Download with custom filename (modify script)
+./echoHEIST.sh "https://tabs.ultimate-guitar.com/tab/dream-theater/pull-me-under-guitar-pro-123456"
+```
+
+### Command Line Interface (Original)
+
+```bash
+# Search for tabs
+npm run search "metallica one"
+
+# Download a specific tab
+node dist/index.js grab "https://tabs.ultimate-guitar.com/tab/metallica/one-guitar-pro-54157"
+
+# Interactive TUI mode
+npm run search -- "plini" --tui
+```
+
+## 🛠️ Installation Methods
+
+### Method 1: Automated Scripts (Easiest)
+
+#### Universal Launcher
+
+The `launch.sh` script automatically detects your operating system and runs the appropriate installer:
+
+```bash
+chmod +x launch.sh
+./launch.sh
+```
+
+#### Windows Scripts
+
+**Command Prompt:**
+
+```cmd
+install.bat
+run.bat
+```
+
+**PowerShell:**
+
+```powershell
+.\install.ps1
+.\run.ps1
+```
+
+#### macOS/Linux Scripts
+
+```bash
+chmod +x install.sh run.sh
+./install.sh
+./run.sh
+```
+
+### Method 2: Manual Installation
+
+#### Step 1: Clone the Repository
+
+```bash
+git clone https://github.com/DTRHnet/133748.git
+cd 133748
+```
+
+#### Step 2: Install Dependencies
+
+```bash
+npm install
+```
+
+#### Step 3: Build the Project
+
+```bash
+npm run build
+```
+
+#### Step 4: Start the Web App
+
+```bash
+npm run web
+```
+
+### Method 3: Development Setup
+
+#### Install Development Dependencies
+
+```bash
+npm install
+```
+
+#### Build and Watch for Changes
+
+```bash
+npm run build
+npm run web
+```
+
+#### Run Tests
+
+```bash
+npm test
+npm run test:integration
+npm run test:unit
+```
+
+## 🌐 Running Options
+
+### Web Application
+
+```bash
+# Start the web interface
+npm run web
+
+# Or use the run scripts
+./run.sh          # macOS/Linux
+run.bat           # Windows CMD
+.\run.ps1         # Windows PowerShell
+```
+
+**Access at:** `http://localhost:3000`
+
+### Command Line Interface
+
+#### Basic Commands
+
+```bash
+# Search for tabs
+npm run search "artist song"
+
+# Download specific tab
+node dist/index.js grab "URL"
+
+# Interactive TUI
+npm run search -- "query" --tui
+```
+
+#### Detailed CLI Usage
+
+**Search Command:**
+
+```bash
+# Basic search
+node dist/index.js search "metallica one"
+
+# Search with options
+node dist/index.js search "dream theater" --json
+node dist/index.js search "plini" --tui
+node dist/index.js search "tool" --max-pages 5
+```
+
+**Grab Command:**
+
+```bash
+# Download a single tab
+node dist/index.js grab "https://tabs.ultimate-guitar.com/tab/metallica/one-guitar-pro-54157"
+
+# Download with custom output directory
+node dist/index.js grab "URL" --output ~/Downloads
+```
+
+**Available Options:**
+
+```bash
+# Search options
+--json              # Output results in JSON format
+--tui               # Launch interactive Terminal User Interface
+--max-pages N       # Limit search to N pages (default: 10)
+--output DIR        # Specify output directory for downloads
+--verbose           # Enable verbose logging
+--quiet             # Minimal output
+
+# Global options
+--config FILE       # Use alternate configuration file
+--log-level LEVEL   # Set log level (debug, info, warn, error, silent)
+--help              # Show help information
+--version           # Print version information
+```
+
+#### Interactive TUI Mode
+
+```bash
+# Launch TUI with search
+node dist/index.js search "query" --tui
+
+# TUI Controls:
+# ↑/↓ Arrow Keys    - Navigate up/down
+# ←/→ Arrow Keys    - Expand/collapse items
+# Enter/→           - Open URL in browser
+# Space             - Mark item for download
+# d                 - Download all marked items
+# a                 - Expand/collapse all at current level
+# 1,2,3,4           - Sort by Type, Artist, Song, Tab Type
+# q/Esc             - Quit
+```
+
+#### Output Formats
+
+**Hierarchical Text (Default):**
+
+```
+Metallica
+├── One
+│   ├── Guitar Pro (Official) - 4.5/5 ⭐
+│   ├── Power Tab - 4.2/5 ⭐
+│   └── Tab - 4.0/5 ⭐
+└── Enter Sandman
+    ├── Guitar Pro - 4.8/5 ⭐
+    └── Tab - 4.3/5 ⭐
+```
+
+**JSON Output:**
+
+```bash
+node dist/index.js search "metallica" --json
+```
+
+```json
+[
+  {
+    "artist": "Metallica",
+    "song": "One",
+    "type": "Guitar Pro",
+    "rating": 4.5,
+    "url": "https://tabs.ultimate-guitar.com/tab/metallica/one-guitar-pro-54157"
+  }
+]
+```
+
+#### Configuration Options
+
+```bash
+# Set log level
+export LOG_LEVEL=debug
+node dist/index.js search "query"
+
+# Use custom config
+node dist/index.js search "query" --config ~/.config/133748.conf
+
+# Set output directory
+node dist/index.js grab "URL" --output ~/Music/Tabs
+```
+
+### Original Shell Script
+
+```bash
+# Make executable and run
+chmod +x echoHEIST.sh
+./echoHEIST.sh "https://tabs.ultimate-guitar.com/tab/artist/song-guitar-pro-123456"
+```
+
+## 📱 Mobile Support
+
+The web app is fully optimized for mobile devices:
+
+- **Responsive Design** - Adapts to all screen sizes
+- **Touch-Friendly** - Optimized for touch interactions
+- **Enhanced Debug Window** - Larger, more readable log display
+- **Mobile Browsers** - Works on iOS Safari, Android Chrome, and more
+
+### Mobile Testing
+
+Open `test-mobile.html` in your mobile browser to test compatibility features.
+
+## ⚡ Quick Reference
+
+### Most Common Commands
+
+```bash
+# Web App (Easiest)
+npm run web                    # Start web interface
+# Then open http://localhost:3000
+
+# CLI Search
+node dist/index.js search "artist song"    # Basic search
+node dist/index.js search "query" --tui    # Interactive mode
+node dist/index.js search "query" --json   # JSON output
+
+# CLI Download
+node dist/index.js grab "URL"              # Download specific tab
+
+# Original Script
+./echoHEIST.sh "URL"                       # Direct download
+```
+
+### Installation Commands
+
+```bash
+# Universal (Recommended)
+./launch.sh
+
+# OS-Specific
+./install.sh && ./run.sh                   # macOS/Linux
+install.bat && run.bat                     # Windows CMD
+.\install.ps1 && .\run.ps1                 # Windows PowerShell
+
+# Manual
+npm install && npm run build && npm run web
+```
+
+## 🔧 Configuration
+
+### Environment Variables
+
+```bash
+# Set custom port
+export PORT=8080
+npm run web
+
+# Set log level
+export LOG_LEVEL=debug
+npm run web
+```
+
+### Configuration File
+
+Edit `config/default.conf` to customize settings:
+
+```ini
+# Directory where downloaded tabs will be saved
+tabs_dir = ~/Tabs
+
+# Log level (debug, info, warn, error, silent)
+log_level = info
+
+# Request timeout in milliseconds
+request_timeout_ms = 15000
+
+# Path to Chrome executable (optional)
+# chrome_path = /usr/bin/google-chrome-stable
+```
+
+## 🚨 Troubleshooting
+
+### Common Issues
+
+#### Port 3000 Already in Use
+
+```bash
+# The scripts automatically handle this, but if manual:
+# Windows
+netstat -ano | findstr :3000
+taskkill /F /PID <PID>
+
+# macOS/Linux
+lsof -i :3000
+kill -9 <PID>
+```
+
+#### Node.js Not Found
+
+- Install Node.js from [nodejs.org](https://nodejs.org/)
+- Restart your terminal
+- Verify: `node --version`
+
+#### Permission Denied (Unix)
+
+```bash
+chmod +x *.sh
+```
+
+#### PowerShell Execution Policy (Windows)
+
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+```
+
+### Browser Console Errors
+
+The errors you see in browser console like:
+
+```
+Uncaught Error: Attempting to use a disconnected port object
+```
+
+These are from browser extensions (ad blockers, password managers, etc.) and **do not affect EchoHEIST functionality**. They can be safely ignored.
+
+### Getting Help
+
+1. Check the [Troubleshooting Guide](TROUBLESHOOTING.md)
+2. Verify prerequisites are installed
+3. Try the automated installation scripts
+4. Check server logs in the terminal
+
+## 📁 Project Structure
+
+```
+133748/
+├── src/                    # Source code
+│   ├── web/               # Web application
+│   │   ├── server.js      # Express server
+│   │   └── public/        # Web interface
+│   ├── cmd/               # Command line tools
+│   ├── internal/          # Internal modules
+│   └── pkg/               # Shared packages
+├── dist/                  # Built files
+├── config/                # Configuration files
+├── install.sh/.bat/.ps1   # Installation scripts
+├── run.sh/.bat/.ps1       # Run scripts
+├── launch.sh              # Universal launcher
+└── echoHEIST.sh           # Original shell script
+```
+
+## 🧪 Testing
+
+### Test the Web App
+
+```bash
+# Run the test suite
+node test-web-app.js
+
+# Test mobile compatibility
+open test-mobile.html
+```
+
+### Test Different Methods
+
+```bash
+# Test web interface
+npm run web
+
+# Test CLI
+npm run search "test query"
+
+# Test original script
+./echoHEIST.sh "https://tabs.ultimate-guitar.com/tab/test/test-guitar-pro-123456"
+```
+
+## 🔄 Updates
+
+### Update the Application
+
+```bash
+# Pull latest changes
+git pull
+
+# Reinstall dependencies
+npm install
+
+# Rebuild project
+npm run build
+
+# Restart web app
+npm run web
+```
+
+### Update Dependencies
+
+```bash
+npm update
+npm run build
+```
+
+## 📊 Performance
 
 ### System Requirements
 
-- **Node.js** 16+ (recommended: 18+)
-- **npm** 8+ (comes with Node.js)
-- **Chrome/Chromium** browser (for Puppeteer)
-- **curl** (for downloads)
+- **RAM**: 512MB minimum, 1GB recommended
+- **Storage**: 100MB for application, additional space for downloaded tabs
+- **Network**: Stable internet connection for downloading tabs
 
-### Platform Support
+### Optimization Tips
 
-- ✅ **Windows** (10/11)
-- ✅ **macOS** (10.15+)
-- ✅ **Linux** (Ubuntu, Debian, CentOS, etc.)
+- Install Chrome/Chromium for better Puppeteer performance
+- Close unnecessary browser tabs to free up memory
+- Use a stable internet connection for reliable downloads
 
----
+## 🤝 Contributing
 
-## Usage
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature-name`
+3. Make your changes
+4. Test thoroughly
+5. Commit your changes: `git commit -m 'Add feature'`
+6. Push to the branch: `git push origin feature-name`
+7. Submit a pull request
 
-### Cross-Platform Launchers
+## 📄 License
 
-**Windows:**
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-```cmd
-run.bat search "metallica one"
-run.bat grab https://tabs.ultimate-guitar.com/tab/metallica/one-guitar-pro-54157
-```
+## 🙏 Acknowledgments
 
-**Unix-like systems (Linux/macOS):**
+- **Ultimate Guitar** - For providing the tab platform
+- **Puppeteer** - For browser automation capabilities
+- **Express.js** - For the web server framework
+- **Socket.IO** - For real-time communication
 
-```bash
-./run.sh search "metallica one"
-./run.sh grab https://tabs.ultimate-guitar.com/tab/metallica/one-guitar-pro-54157
-```
+## 📞 Support
 
-### NPM Scripts
+- **Documentation**: See [WEB_APP_GUIDE.md](WEB_APP_GUIDE.md)
+- **Mobile Guide**: See [MOBILE_GUIDE.md](MOBILE_GUIDE.md)
+- **Troubleshooting**: See [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+- **Installation**: See [INSTALLATION.md](INSTALLATION.md)
 
-```bash
-# Basic search (hierarchical text)
-npm run search "metallica one"
+## 🎉 Success Indicators
 
-# JSON output
-npm run search "dream theater" --json
+Your EchoHEIST installation is working correctly when you see:
 
-# Interactive TUI (Guitar Pro only)
-npm run search -- "plini" --tui
-
-# Directly grab a Guitar Pro tab
-npm run grab https://tabs.ultimate-guitar.com/tab/metallica/one-guitar-pro-54157
-```
-
-### Direct Node.js Usage
-
-```bash
-# Basic search (hierarchical text)
-node dist/index.js search "metallica one"
-
-# JSON output
-node dist/index.js search "dream theater" --json
-
-# Interactive TUI (Guitar Pro only)
-node dist/index.js search "plini" --tui
-
-# Directly grab a Guitar Pro tab
-node dist/index.js grab https://tabs.ultimate-guitar.com/tab/metallica/one-guitar-pro-54157
-
-# Show help
-node dist/index.js --help
-
-# Show version
-node dist/index.js --version
-```
-
-### Standalone echoHEIST Script
-
-```bash
-# Basic usage
-./echoHEIST.sh https://tabs.ultimate-guitar.com/tab/metallica/one-guitar-pro-54157
-
-# With custom filename
-./echoHEIST.sh https://tabs.ultimate-guitar.com/tab/metallica/one-guitar-pro-54157 metallica_one.gpx
-
-# With debug output
-DEBUG=1 ./echoHEIST.sh https://tabs.ultimate-guitar.com/tab/metallica/one-guitar-pro-54157
-
-# With custom Chrome path
-CHROME_PATH="/path/to/chrome" ./echoHEIST.sh https://tabs.ultimate-guitar.com/tab/metallica/one-guitar-pro-54157
-```
+- ✅ Server running on `http://localhost:3000`
+- ✅ Web interface loads without errors
+- ✅ Real-time progress updates during download
+- ✅ File download completes successfully
+- ✅ "Download process completed successfully!" message
 
 ---
 
-## Development
+**Made with ❤️ by [DTRH.net](https://dtrh.net)**
 
-### Available Scripts
-
-| Script                     | Purpose                              |
-| -------------------------- | ------------------------------------ |
-| `npm run build`            | Transpile `src/` → `dist/` via Babel |
-| `npm run start`            | Execute `dist/index.js`              |
-| `npm run setup`            | Run cross-platform setup script      |
-| `npm run clean`            | Clean build directory                |
-| `npm run rebuild`          | Clean and rebuild                    |
-| `npm run dev`              | Build and start in development mode  |
-| `npm run test`             | Run all tests                        |
-| `npm run test:integration` | Integration tests                    |
-| `npm run test:unit`        | Unit tests                           |
-| `npm run test:watch`       | Run tests in watch mode              |
-| `npm run lint` / `:fix`    | Lint code (auto-fix with `:fix`)     |
-| `npm run format`           | Format with Prettier                 |
-| `npm run format:check`     | Check formatting without fixing      |
-| `npm run precommit`        | Run lint-staged before commits       |
-| `npm run prepare`          | Set up Husky Git hooks               |
-
-### Debugging
-
-The application includes comprehensive debugging information:
-
-- **Debug Logs**: Set `log_level = debug` in `config/default.conf`
-- **Environment Variables**:
-  - `DEBUG=1` for echoHEIST.sh debug output
-  - `CHROME_PATH=/path/to/chrome` for custom Chrome executable
-- **Log Files**: Located in `~/.cache/133748/` (or `%USERPROFILE%\.cache\133748\` on Windows)
-
-### Troubleshooting
-
-**Common Issues:**
-
-1. **Chrome/Chromium not found**
-
-   - Install Chrome or Chromium browser
-   - Set `chrome_path` in `config/default.conf`
-   - Use `CHROME_PATH` environment variable
-
-2. **Build failures**
-
-   - Run `npm run clean && npm run build`
-   - Check Node.js version (16+ required)
-   - Verify all dependencies are installed
-
-3. **Permission errors (Unix)**
-
-   - Make scripts executable: `chmod +x run.sh echoHEIST.sh`
-   - Check file permissions in project directory
-
-4. **Download failures**
-   - Verify curl is installed and in PATH
-   - Check network connectivity
-   - Ensure URL is a valid Guitar Pro tab
-
-**Getting Help:**
-
-- Check logs in `~/.cache/133748/133748.log`
-- Run with debug output: `DEBUG=1 ./echoHEIST.sh <URL>`
-- Verify configuration: `config/default.conf`
-
----
-
-admin\[AT\]dtrh\[DOT\]net
-
-## License
-
-Released under the MIT License – see LICENSE for details.
+_EchoHEIST - Because music should be accessible to everyone._

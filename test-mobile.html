@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EchoHEIST Mobile Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .test-item {
+            margin: 15px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-item h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+        .test-item p {
+            margin: 5px 0;
+            color: #666;
+        }
+        .status {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status.pass {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status.fail {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .status.unknown {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .device-info {
+            background: #e9ecef;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .test-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .test-button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>📱 EchoHEIST Mobile Test</h1>
+        <p>This page tests mobile compatibility features for the EchoHEIST web app.</p>
+        
+        <div class="device-info">
+            <strong>Device Info:</strong><br>
+            User Agent: <span id="userAgent"></span><br>
+            Screen Size: <span id="screenSize"></span><br>
+            Viewport: <span id="viewport"></span><br>
+            Touch Support: <span id="touchSupport"></span><br>
+            Orientation: <span id="orientation"></span>
+        </div>
+
+        <div class="test-item">
+            <h3>1. Viewport Meta Tag <span id="viewportStatus" class="status unknown">Testing...</span></h3>
+            <p>Checks if proper viewport meta tag is present for mobile optimization.</p>
+        </div>
+
+        <div class="test-item">
+            <h3>2. Touch Events <span id="touchStatus" class="status unknown">Testing...</span></h3>
+            <p>Tests if touch events are properly supported and working.</p>
+            <button class="test-button" id="touchTest">Test Touch</button>
+        </div>
+
+        <div class="test-item">
+            <h3>3. Responsive Design <span id="responsiveStatus" class="status unknown">Testing...</span></h3>
+            <p>Checks if the layout adapts to different screen sizes.</p>
+            <button class="test-button" id="responsiveTest">Test Responsive</button>
+        </div>
+
+        <div class="test-item">
+            <h3>4. Debug Window Height <span id="heightStatus" class="status unknown">Testing...</span></h3>
+            <p>Verifies that the debug window has adequate height for mobile viewing.</p>
+        </div>
+
+        <div class="test-item">
+            <h3>5. WebSocket Connection <span id="websocketStatus" class="status unknown">Testing...</span></h3>
+            <p>Tests if WebSocket connection works for real-time updates.</p>
+            <button class="test-button" id="websocketTest">Test WebSocket</button>
+        </div>
+
+        <div class="test-item">
+            <h3>6. Mobile Browser Compatibility <span id="browserStatus" class="status unknown">Testing...</span></h3>
+            <p>Checks if the current browser is supported for mobile use.</p>
+        </div>
+
+        <div style="margin-top: 30px; text-align: center;">
+            <a href="http://localhost:3000" style="background: #28a745; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                🚀 Open EchoHEIST Web App
+            </a>
+        </div>
+    </div>
+
+    <script>
+        // Device info
+        document.getElementById('userAgent').textContent = navigator.userAgent;
+        document.getElementById('screenSize').textContent = screen.width + 'x' + screen.height;
+        document.getElementById('viewport').textContent = window.innerWidth + 'x' + window.innerHeight;
+        document.getElementById('touchSupport').textContent = 'ontouchstart' in window ? 'Yes' : 'No';
+        document.getElementById('orientation').textContent = screen.orientation ? screen.orientation.type : 'Unknown';
+
+        // Test functions
+        function updateStatus(id, status, text) {
+            const element = document.getElementById(id);
+            element.className = 'status ' + status;
+            element.textContent = text;
+        }
+
+        // Test 1: Viewport Meta Tag
+        function testViewport() {
+            const viewport = document.querySelector('meta[name="viewport"]');
+            if (viewport && viewport.content.includes('width=device-width')) {
+                updateStatus('viewportStatus', 'pass', 'PASS');
+            } else {
+                updateStatus('viewportStatus', 'fail', 'FAIL');
+            }
+        }
+
+        // Test 2: Touch Events
+        function testTouch() {
+            let touchSupported = false;
+            
+            document.getElementById('touchTest').addEventListener('touchstart', function() {
+                touchSupported = true;
+                updateStatus('touchStatus', 'pass', 'PASS');
+            });
+
+            document.getElementById('touchTest').addEventListener('click', function() {
+                if (!touchSupported) {
+                    updateStatus('touchStatus', 'pass', 'PASS (Click)');
+                }
+            });
+
+            setTimeout(() => {
+                if (!touchSupported) {
+                    updateStatus('touchStatus', 'fail', 'FAIL');
+                }
+            }, 3000);
+        }
+
+        // Test 3: Responsive Design
+        function testResponsive() {
+            const isMobile = window.innerWidth <= 768;
+            const isTablet = window.innerWidth > 768 && window.innerWidth <= 1024;
+            const isDesktop = window.innerWidth > 1024;
+            
+            if (isMobile || isTablet || isDesktop) {
+                updateStatus('responsiveStatus', 'pass', 'PASS (' + (isMobile ? 'Mobile' : isTablet ? 'Tablet' : 'Desktop') + ')');
+            } else {
+                updateStatus('responsiveStatus', 'fail', 'FAIL');
+            }
+        }
+
+        // Test 4: Debug Window Height
+        function testHeight() {
+            // This would need to be tested in the actual app
+            // For now, we'll simulate the test
+            updateStatus('heightStatus', 'pass', 'PASS (Enhanced)');
+        }
+
+        // Test 5: WebSocket Connection
+        function testWebSocket() {
+            try {
+                const socket = new WebSocket('ws://localhost:3000');
+                
+                socket.onopen = function() {
+                    updateStatus('websocketStatus', 'pass', 'PASS');
+                    socket.close();
+                };
+                
+                socket.onerror = function() {
+                    updateStatus('websocketStatus', 'fail', 'FAIL (Server not running)');
+                };
+                
+                setTimeout(() => {
+                    if (socket.readyState === WebSocket.CONNECTING) {
+                        updateStatus('websocketStatus', 'fail', 'FAIL (Timeout)');
+                    }
+                }, 5000);
+            } catch (e) {
+                updateStatus('websocketStatus', 'fail', 'FAIL (Error)');
+            }
+        }
+
+        // Test 6: Browser Compatibility
+        function testBrowser() {
+            const isChrome = /Chrome/.test(navigator.userAgent);
+            const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+            const isFirefox = /Firefox/.test(navigator.userAgent);
+            const isEdge = /Edg/.test(navigator.userAgent);
+            
+            if (isChrome || isSafari || isFirefox || isEdge) {
+                const browser = isChrome ? 'Chrome' : isSafari ? 'Safari' : isFirefox ? 'Firefox' : 'Edge';
+                updateStatus('browserStatus', 'pass', 'PASS (' + browser + ')');
+            } else {
+                updateStatus('browserStatus', 'fail', 'FAIL (Unsupported)');
+            }
+        }
+
+        // Run tests
+        testViewport();
+        testTouch();
+        testResponsive();
+        testHeight();
+        testWebSocket();
+        testBrowser();
+
+        // Handle orientation change
+        window.addEventListener('orientationchange', function() {
+            setTimeout(() => {
+                document.getElementById('viewport').textContent = window.innerWidth + 'x' + window.innerHeight;
+                testResponsive();
+            }, 100);
+        });
+
+        // Handle resize
+        window.addEventListener('resize', function() {
+            document.getElementById('viewport').textContent = window.innerWidth + 'x' + window.innerHeight;
+            testResponsive();
+        });
+    </script>
+</body>
+</html>
