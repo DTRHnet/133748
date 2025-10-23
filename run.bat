@@ -16,4 +16,3 @@ if not exist "dist" (
 REM Run the application
 node dist/index.js %*
 pause
-

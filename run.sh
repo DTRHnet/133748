@@ -15,4 +15,3 @@ fi
 
 # Run the application
 node dist/index.js "$@"
-
