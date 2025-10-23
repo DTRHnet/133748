@@ -537,6 +537,21 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 .\run.ps1
 ```
 
+### Fix Windows Babel Issues
+
+If you encounter Babel-related errors on Windows:
+
+```cmd
+# Command Prompt
+fix-windows.bat
+
+# PowerShell
+.\fix-windows.ps1
+
+# Or use the clean script
+npm run clean
+```
+
 ## 🚨 Troubleshooting
 
 ### Common Issues
