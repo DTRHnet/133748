@@ -12,7 +12,7 @@
     "133748": "bin/133748"
   },
   "scripts": {
-    "build": "npx babel src --out-dir dist --extensions \".js,.jsx\"",
+    "build": "npm run build:netlify",
     "build:web": "npm run build && npm run build:functions && npm run build:react",
     "build:functions": "node scripts/build-functions.js",
     "build:public": "node scripts/build-public.js",
