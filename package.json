@@ -13,9 +13,9 @@
   },
   "scripts": {
     "build": "babel src --out-dir dist --extensions \".js,.jsx\"",
-    "build:web": "npm run build && npm run build:functions && npm run build:react",
+    "build:web": "npm run build && npm run build:functions && npm run build:public",
     "build:functions": "babel netlify/functions --out-dir netlify/functions/dist --extensions \".js\"",
-    "build:react": "vite build",
+    "build:public": "node build-public.js",
     "dev:react": "vite",
     "start:react": "node src/web/server.js",
     "serve": "node src/web/server.js",
