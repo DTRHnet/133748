@@ -91,13 +91,16 @@ export const handler = async (event, _context) => {
     page.on('request', (req) => {
       const requestUrl = req.url();
 
-      // Look for download requests
+      // Look for download requests - updated patterns for current UG
       if (
         requestUrl.includes('/download/public/') ||
+        requestUrl.includes('/download/') ||
         requestUrl.includes('.gpx') ||
         requestUrl.includes('.gp5') ||
         requestUrl.includes('.gp4') ||
-        requestUrl.includes('.gp3')
+        requestUrl.includes('.gp3') ||
+        requestUrl.includes('guitar-pro') ||
+        requestUrl.includes('tab_download')
       ) {
         console.log(`Captured download request: ${requestUrl}`);
         downloadUrl = requestUrl;
@@ -118,8 +121,81 @@ export const handler = async (event, _context) => {
       timeout: 30000,
     });
 
-    // Wait a bit for any dynamic requests
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    // Wait for page to fully load
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+
+    // Try to find and click the download button
+    try {
+      // Look for various download button selectors
+      const downloadSelectors = [
+        'a[href*="download"]',
+        'button[class*="download"]',
+        '.download-button',
+        '.download-btn',
+        'a[class*="download"]',
+        'button[onclick*="download"]',
+        '.js-download',
+        '[data-action="download"]',
+        'a[href*="guitar-pro"]',
+        'a[href*=".gpx"]',
+        'a[href*=".gp5"]',
+      ];
+
+      let downloadButton = null;
+      for (const selector of downloadSelectors) {
+        try {
+          downloadButton = await page.$(selector);
+          if (downloadButton) {
+            console.log(`Found download button with selector: ${selector}`);
+            break;
+          }
+        } catch (e) {
+          // Continue to next selector
+        }
+      }
+
+      if (downloadButton) {
+        console.log('Clicking download button...');
+        await downloadButton.click();
+
+        // Wait for download to initiate
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+      } else {
+        console.log('No download button found, checking for direct download links...');
+
+        // Try to find direct download links in the page content
+        const downloadLinks = await page.evaluate(() => {
+          // eslint-disable-next-line no-undef
+          const links = Array.from(document.querySelectorAll('a'));
+          return links
+            .map((link) => ({
+              href: link.href,
+              text: link.textContent.trim(),
+              className: link.className,
+            }))
+            .filter(
+              (link) =>
+                link.href.includes('download') ||
+                link.href.includes('guitar-pro') ||
+                link.href.includes('.gpx') ||
+                link.href.includes('.gp5') ||
+                link.text.toLowerCase().includes('download') ||
+                link.text.toLowerCase().includes('guitar pro')
+            );
+        });
+
+        if (downloadLinks.length > 0) {
+          console.log(`Found ${downloadLinks.length} potential download links:`, downloadLinks);
+          // Click the first download link
+          await page.click(
+            'a[href*="download"], a[href*="guitar-pro"], a[href*=".gpx"], a[href*=".gp5"]'
+          );
+          await new Promise((resolve) => setTimeout(resolve, 3000));
+        }
+      }
+    } catch (error) {
+      console.log('Error clicking download button:', error.message);
+    }
 
     if (!downloadInitiated) {
       return {
@@ -127,29 +203,57 @@ export const handler = async (event, _context) => {
         headers,
         body: JSON.stringify({
           error: 'No download link found',
-          message: 'This URL may not contain a downloadable Guitar Pro file',
+          message:
+            'This URL may not contain a downloadable Guitar Pro file or the download mechanism has changed',
           url: url,
+          suggestion: 'Please check if this tab has a Guitar Pro version available',
         }),
       };
     }
 
     // Download the file using the captured URL and headers
     console.log(`Downloading file from: ${downloadUrl}`);
+    console.log(`Using headers:`, downloadHeaders);
 
     const response = await fetch(downloadUrl, {
-      headers: downloadHeaders,
+      headers: {
+        ...downloadHeaders,
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        Referer: url,
+        Accept: 'application/octet-stream, application/x-guitar-pro, */*',
+      },
     });
 
+    console.log(`Download response status: ${response.status}`);
+    console.log(`Download response headers:`, Object.fromEntries(response.headers.entries()));
+
     if (!response.ok) {
-      throw new Error(`Download failed with status: ${response.status}`);
+      const errorText = await response.text();
+      console.log(`Download failed response body:`, errorText);
+      throw new Error(`Download failed with status: ${response.status} - ${errorText}`);
     }
 
     const fileBuffer = await response.arrayBuffer();
+    console.log(`Downloaded file size: ${fileBuffer.byteLength} bytes`);
+
+    if (fileBuffer.byteLength === 0) {
+      throw new Error('Downloaded file is empty');
+    }
+
     const base64Data = Buffer.from(fileBuffer).toString('base64');
 
     // Extract filename from URL or use default
     const urlParts = downloadUrl.split('/');
-    const filename = urlParts[urlParts.length - 1] || 'download.gpx';
+    let filename = urlParts[urlParts.length - 1] || 'download.gpx';
+
+    // Clean up filename
+    filename = filename.split('?')[0]; // Remove query parameters
+    if (!filename.includes('.')) {
+      filename += '.gpx'; // Add extension if missing
+    }
+
+    console.log(`Final filename: ${filename}`);
 
     return {
       statusCode: 200,
