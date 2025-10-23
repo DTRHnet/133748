@@ -3,9 +3,22 @@
     [
       "@babel/preset-env",
       {
-        "modules": false // This tells Babel to keep import/export statements
+        "targets": { "node": "current" },
+        "modules": false,
+        "useBuiltIns": "usage",
+        "corejs": 3
       }
     ],
     "@babel/preset-react"
+  ],
+  "plugins": [
+    "@babel/plugin-transform-class-properties",
+    "@babel/plugin-transform-object-rest-spread",
+    [
+      "@babel/plugin-transform-runtime",
+      {
+        "regenerator": true
+      }
+    ]
   ]
 }

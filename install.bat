@@ -66,8 +66,15 @@ echo 🔨 Building the project...
 call npm run build
 if errorlevel 1 (
     echo ❌ Failed to build project
-    pause
-    exit /b 1
+    echo.
+    echo This might be due to missing dependencies. Trying to install them...
+    call npm install --force
+    call npm run build
+    if errorlevel 1 (
+        echo ❌ Still failed to build project
+        pause
+        exit /b 1
+    )
 )
 echo.
 

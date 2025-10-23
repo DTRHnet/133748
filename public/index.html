@@ -2,215 +2,502 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>133748 - Ultimate Guitar Tab Downloader</title>
-    <meta name="description" content="A powerful web interface for searching and downloading Ultimate Guitar tabs">
-    <meta name="keywords" content="guitar tabs, ultimate guitar, music, tabs, guitar pro">
-    
-    <!-- Favicon -->
-    <link rel="icon" type="image/x-icon" href="/favicon.ico">
-    
-    <!-- Styles -->
-    <link rel="stylesheet" href="/styles.css">
-    
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>EchoHEIST - Ultimate Guitar Tab Downloader</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+            max-height: 90vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header .subtitle {
+            color: #666;
+            font-size: 1.1em;
+            margin-bottom: 20px;
+        }
+
+        .ascii-art {
+            font-family: 'Courier New', monospace;
+            font-size: 0.7em;
+            color: #555;
+            line-height: 1.2;
+            margin-bottom: 20px;
+            white-space: pre;
+        }
+
+        .input-section {
+            margin-bottom: 30px;
+        }
+
+        .url-input {
+            width: 100%;
+            padding: 15px 20px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
+        }
+
+        .url-input:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .download-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 15px;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .download-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .download-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-weight: 500;
+            display: none;
+        }
+
+        .status.connecting {
+            background: #e3f2fd;
+            color: #1976d2;
+            border: 1px solid #bbdefb;
+        }
+
+        .status.connected {
+            background: #e8f5e8;
+            color: #2e7d32;
+            border: 1px solid #c8e6c9;
+        }
+
+        .status.disconnected {
+            background: #ffebee;
+            color: #c62828;
+            border: 1px solid #ffcdd2;
+        }
+
+        .log-container {
+            flex: 1;
+            background: #1e1e1e;
+            border-radius: 10px;
+            padding: 20px;
+            overflow-y: auto;
+            min-height: 500px;
+            max-height: 70vh;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .log-entry {
+            margin-bottom: 8px;
+            padding: 5px 0;
+            border-bottom: 1px solid #333;
+        }
+
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        .log-entry.info {
+            color: #4fc3f7;
+        }
+
+        .log-entry.success {
+            color: #4caf50;
+            font-weight: bold;
+        }
+
+        .log-entry.warning {
+            color: #ff9800;
+        }
+
+        .log-entry.error {
+            color: #f44336;
+            font-weight: bold;
+        }
+
+        .timestamp {
+            color: #666;
+            margin-right: 10px;
+        }
+
+        .download-link {
+            display: none;
+            margin-top: 20px;
+            padding: 15px;
+            background: #e8f5e8;
+            border: 1px solid #4caf50;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .download-link a {
+            color: #2e7d32;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        .download-link a:hover {
+            text-decoration: underline;
+        }
+
+        .example-urls {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .example-urls h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .example-urls p {
+            color: #666;
+            font-size: 12px;
+            margin-bottom: 5px;
+            font-family: 'Courier New', monospace;
+            word-break: break-all;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .container {
+                padding: 20px;
+                margin: 0;
+                max-height: 95vh;
+                border-radius: 15px;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .header .subtitle {
+                font-size: 1em;
+            }
+            
+            .ascii-art {
+                font-size: 0.5em;
+                margin-bottom: 15px;
+            }
+            
+            .url-input {
+                padding: 12px 15px;
+                font-size: 16px; /* Prevents zoom on iOS */
+            }
+            
+            .download-btn {
+                padding: 12px;
+                font-size: 16px;
+            }
+            
+            .log-container {
+                min-height: 400px;
+                max-height: 60vh;
+                padding: 15px;
+                font-size: 13px;
+            }
+            
+            .example-urls {
+                padding: 10px;
+                margin-top: 15px;
+            }
+            
+            .example-urls h3 {
+                font-size: 13px;
+            }
+            
+            .example-urls p {
+                font-size: 11px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 15px;
+                max-height: 98vh;
+            }
+            
+            .header h1 {
+                font-size: 1.8em;
+            }
+            
+            .ascii-art {
+                font-size: 0.4em;
+                line-height: 1.1;
+            }
+            
+            .log-container {
+                min-height: 350px;
+                max-height: 55vh;
+                padding: 12px;
+                font-size: 12px;
+            }
+            
+            .log-entry {
+                margin-bottom: 6px;
+                padding: 3px 0;
+            }
+            
+            .timestamp {
+                font-size: 11px;
+            }
+        }
+    </style>
 </head>
 <body>
-    <div id="app">
-        <!-- Header -->
-        <header class="header">
-            <div class="container">
-                <div class="header-content">
-                    <div class="logo">
-                        <h1>133748</h1>
-                        <span class="subtitle">Ultimate Guitar Tab Downloader</span>
-                    </div>
-                    <div class="header-actions">
-                        <button id="debug-toggle" class="btn btn-secondary">Debug</button>
-                        <button id="help-btn" class="btn btn-secondary">Help</button>
-                    </div>
-                </div>
+    <div class="container">
+        <div class="header">
+            <div class="ascii-art">        █▀▀ █▀▀ █░░█ █▀▀█ ▒█░▒█ ▒█▀▀▀ ▀█▀ ▒█▀▀▀█ ▀▀█▀▀ 
+        █▀▀ █░░ █▀▀█ █░░█ ▒█▀▀█ ▒█▀▀▀ ▒█░ ░▀▀▀▄▄ ░▒█░░ 
+        ▀▀▀ ▀▀▀ ▀░░▀ ▀▀▀▀ ▒█░▒█ ▒█▄▄▄ ▄█▄ ▒█▄▄▄█ ░▒█░░</div>
+            <h1>EchoHEIST</h1>
+            <div class="subtitle">Ultimate Guitar Tab Downloader</div>
+        </div>
+
+        <div class="status" id="status"></div>
+
+        <div class="input-section">
+            <input type="url" id="urlInput" class="url-input" 
+                   placeholder="Paste your Ultimate Guitar tab URL here..." 
+                   autocomplete="off">
+            <button id="downloadBtn" class="download-btn">Download Guitar Pro File</button>
+        </div>
+
+        <div class="download-link" id="downloadLink">
+            <a href="#" id="downloadAnchor" target="_blank">📥 Download Your File</a>
+        </div>
+
+        <div class="log-container" id="logContainer">
+            <div class="log-entry info">
+                <span class="timestamp">[READY]</span>
+                EchoHEIST Web App initialized. Paste a Ultimate Guitar tab URL above to begin.
             </div>
-        </header>
+        </div>
 
-        <!-- Main Content -->
-        <main class="main">
-            <div class="container">
-                <!-- Search Section -->
-                <section class="search-section">
-                    <div class="search-container">
-                        <h2>Search for Guitar Tabs</h2>
-                        <form id="search-form" class="search-form">
-                            <div class="input-group">
-                                <input 
-                                    type="text" 
-                                    id="search-input" 
-                                    placeholder="Enter artist and song (e.g., 'metallica one')"
-                                    required
-                                >
-                                <button type="submit" class="btn btn-primary">
-                                    <span class="btn-text">Search</span>
-                                    <span class="btn-loading" style="display: none;">Searching...</span>
-                                </button>
-                            </div>
-                            <div class="search-options">
-                                <label class="checkbox-label">
-                                    <input type="checkbox" id="guitar-pro-only" checked>
-                                    <span>Guitar Pro only</span>
-                                </label>
-                                <label class="checkbox-label">
-                                    <input type="checkbox" id="json-output">
-                                    <span>JSON output</span>
-                                </label>
-                                <div class="limit-group">
-                                    <label for="result-limit">Limit:</label>
-                                    <select id="result-limit">
-                                        <option value="10">10</option>
-                                        <option value="25" selected>25</option>
-                                        <option value="50">50</option>
-                                        <option value="100">100</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-                </section>
-
-                <!-- Results Section -->
-                <section class="results-section" id="results-section" style="display: none;">
-                    <div class="results-header">
-                        <h3>Search Results</h3>
-                        <div class="results-actions">
-                            <button id="clear-results" class="btn btn-secondary">Clear</button>
-                            <button id="export-results" class="btn btn-secondary">Export</button>
-                        </div>
-                    </div>
-                    <div id="results-container" class="results-container">
-                        <!-- Results will be populated here -->
-                    </div>
-                </section>
-
-                <!-- Download Section -->
-                <section class="download-section">
-                    <div class="download-container">
-                        <h2>Download Single Tab</h2>
-                        <form id="download-form" class="download-form">
-                            <div class="input-group">
-                                <input 
-                                    type="url" 
-                                    id="download-url" 
-                                    placeholder="Enter Ultimate Guitar tab URL"
-                                    required
-                                >
-                                <button type="submit" class="btn btn-primary">
-                                    <span class="btn-text">Download</span>
-                                    <span class="btn-loading" style="display: none;">Downloading...</span>
-                                </button>
-                            </div>
-                            <div class="filename-group">
-                                <label for="filename">Filename (optional):</label>
-                                <input type="text" id="filename" placeholder="Auto-generated if empty">
-                            </div>
-                        </form>
-                    </div>
-                </section>
-
-                <!-- Debug Section -->
-                <section class="debug-section" id="debug-section" style="display: none;">
-                    <div class="debug-container">
-                        <h3>Debug Information</h3>
-                        <div class="debug-tabs">
-                            <button class="debug-tab active" data-tab="system">System</button>
-                            <button class="debug-tab" data-tab="logs">Logs</button>
-                            <button class="debug-tab" data-tab="config">Config</button>
-                        </div>
-                        <div class="debug-content">
-                            <div id="debug-system" class="debug-panel active">
-                                <pre id="system-info">Loading system information...</pre>
-                            </div>
-                            <div id="debug-logs" class="debug-panel">
-                                <div class="logs-container">
-                                    <div id="logs-list" class="logs-list"></div>
-                                    <button id="clear-logs" class="btn btn-secondary">Clear Logs</button>
-                                </div>
-                            </div>
-                            <div id="debug-config" class="debug-panel">
-                                <pre id="config-info">Loading configuration...</pre>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-            </div>
-        </main>
-
-        <!-- Footer -->
-        <footer class="footer">
-            <div class="container">
-                <div class="footer-content">
-                    <div class="footer-info">
-                        <p>&copy; 2025 133748 - Ultimate Guitar Tab Downloader</p>
-                        <p>Built with ❤️ for musicians everywhere</p>
-                    </div>
-                    <div class="footer-links">
-                        <a href="https://github.com/DTRHnet/133748" target="_blank" rel="noopener">GitHub</a>
-                        <a href="https://dtrh.net" target="_blank" rel="noopener">Author</a>
-                        <a href="#" id="api-docs-link">API Docs</a>
-                    </div>
-                </div>
-            </div>
-        </footer>
-    </div>
-
-    <!-- Loading Overlay -->
-    <div id="loading-overlay" class="loading-overlay" style="display: none;">
-        <div class="loading-spinner"></div>
-        <p>Processing...</p>
-    </div>
-
-    <!-- Toast Notifications -->
-    <div id="toast-container" class="toast-container"></div>
-
-    <!-- Help Modal -->
-    <div id="help-modal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Help & Usage</h3>
-                <button class="modal-close">&times;</button>
-            </div>
-            <div class="modal-body">
-                <h4>Search Functionality</h4>
-                <p>Enter an artist and song name to search for tabs on Ultimate Guitar. Examples:</p>
-                <ul>
-                    <li><code>metallica one</code></li>
-                    <li><code>dream theater pull me under</code></li>
-                    <li><code>plini electric sunrise</code></li>
-                </ul>
-                
-                <h4>Download Functionality</h4>
-                <p>Paste a direct URL to an Ultimate Guitar tab page to download it. The URL should look like:</p>
-                <code>https://tabs.ultimate-guitar.com/tab/metallica/one-guitar-pro-54157</code>
-                
-                <h4>Options</h4>
-                <ul>
-                    <li><strong>Guitar Pro only:</strong> Filter results to show only Guitar Pro tabs</li>
-                    <li><strong>JSON output:</strong> Return results in JSON format for API usage</li>
-                    <li><strong>Limit:</strong> Maximum number of results to return</li>
-                </ul>
-                
-                <h4>API Endpoints</h4>
-                <ul>
-                    <li><code>GET /api/search?query=metallica+one</code></li>
-                    <li><code>POST /api/grab</code> with <code>{"url": "...", "filename": "..."}</code></li>
-                    <li><code>GET /api/health</code> for system status</li>
-                </ul>
-            </div>
+        <div class="example-urls">
+            <h3>Example URLs:</h3>
+            <p>https://tabs.ultimate-guitar.com/tab/metallica/one-guitar-pro-54157</p>
+            <p>https://tabs.ultimate-guitar.com/tab/dream-theater/pull-me-under-guitar-pro-123456</p>
         </div>
     </div>
 
-    <!-- Scripts -->
-    <script src="/app.js"></script>
+    <script>
+        const socket = io();
+        const urlInput = document.getElementById('urlInput');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const status = document.getElementById('status');
+        const logContainer = document.getElementById('logContainer');
+        const downloadLink = document.getElementById('downloadLink');
+        const downloadAnchor = document.getElementById('downloadAnchor');
+
+        let isDownloading = false;
+
+        // Socket connection status
+        socket.on('connect', () => {
+            updateStatus('connected', '✅ Connected to EchoHEIST server');
+        });
+
+        socket.on('disconnect', () => {
+            updateStatus('disconnected', '❌ Disconnected from server');
+        });
+
+        // Log handling
+        socket.on('log', (data) => {
+            addLogEntry(data.type, data.message);
+        });
+
+        // Download completion
+        socket.on('downloadComplete', (data) => {
+            showDownloadLink(data.filename);
+            isDownloading = false;
+            downloadBtn.disabled = false;
+            downloadBtn.textContent = 'Download Guitar Pro File';
+        });
+
+        function updateStatus(type, message) {
+            status.className = `status ${type}`;
+            status.textContent = message;
+            status.style.display = 'block';
+        }
+
+        function addLogEntry(type, message) {
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${type}`;
+            
+            const timestamp = new Date().toLocaleTimeString();
+            logEntry.innerHTML = `<span class="timestamp">[${timestamp}]</span>${message}`;
+            
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        function showDownloadLink(filename) {
+            downloadAnchor.href = `/download/${filename}`;
+            downloadAnchor.textContent = `📥 Download ${filename}`;
+            downloadLink.style.display = 'block';
+        }
+
+        function validateUrl(url) {
+            try {
+                const urlObj = new URL(url);
+                return urlObj.hostname.includes('ultimate-guitar.com');
+            } catch {
+                return false;
+            }
+        }
+
+        // Event listeners
+        downloadBtn.addEventListener('click', () => {
+            const url = urlInput.value.trim();
+            
+            if (!url) {
+                addLogEntry('error', '❌ Please enter a URL');
+                return;
+            }
+            
+            if (!validateUrl(url)) {
+                addLogEntry('error', '❌ Please enter a valid Ultimate Guitar URL');
+                return;
+            }
+            
+            if (isDownloading) {
+                addLogEntry('warning', '⚠️ Download already in progress');
+                return;
+            }
+            
+            isDownloading = true;
+            downloadBtn.disabled = true;
+            downloadBtn.textContent = 'Downloading...';
+            downloadLink.style.display = 'none';
+            
+            // Clear previous logs
+            logContainer.innerHTML = '';
+            
+            addLogEntry('info', `🚀 Starting download process for: ${url}`);
+            socket.emit('download', { url });
+        });
+
+        urlInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !isDownloading) {
+                downloadBtn.click();
+            }
+        });
+
+        // Auto-focus URL input (but not on mobile to prevent keyboard popup)
+        if (window.innerWidth > 768) {
+            urlInput.focus();
+        }
+
+        // Mobile-specific enhancements
+        function isMobile() {
+            return window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        }
+
+        // Handle mobile keyboard
+        if (isMobile()) {
+            // Prevent zoom on input focus (iOS)
+            urlInput.addEventListener('focus', function() {
+                document.querySelector('meta[name=viewport]').setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+            });
+            
+            urlInput.addEventListener('blur', function() {
+                document.querySelector('meta[name=viewport]').setAttribute('content', 'width=device-width, initial-scale=1.0');
+            });
+        }
+
+        // Improve touch interactions
+        downloadBtn.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+            this.style.transform = 'scale(0.98)';
+        });
+
+        downloadBtn.addEventListener('touchend', function(e) {
+            e.preventDefault();
+            this.style.transform = '';
+            if (!isDownloading) {
+                this.click();
+            }
+        });
+
+        // Handle orientation change
+        window.addEventListener('orientationchange', function() {
+            setTimeout(function() {
+                logContainer.scrollTop = logContainer.scrollHeight;
+            }, 100);
+        });
+    </script>
 </body>
 </html>
