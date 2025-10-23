@@ -1,34 +1,16 @@
-import { spawn } from 'child_process';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+// Netlify function for EchoHEIST - Full functionality restored
+import puppeteer from 'puppeteer';
 
 export const handler = async (event, _context) => {
-  // Enable CORS
+  // CORS headers
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   };
 
-  // Handle preflight requests
   if (event.httpMethod === 'OPTIONS') {
-    return {
-      statusCode: 200,
-      headers,
-      body: '',
-    };
-  }
-
-  // Only allow POST requests
-  if (event.httpMethod !== 'POST') {
-    return {
-      statusCode: 405,
-      headers,
-      body: JSON.stringify({ error: 'Method not allowed' }),
-    };
+    return { statusCode: 200, headers, body: '' };
   }
 
   try {
@@ -42,99 +24,118 @@ export const handler = async (event, _context) => {
       };
     }
 
-    // Validate URL format
-    try {
-      new URL(url);
-    } catch {
+    // Validate Ultimate Guitar URL
+    if (!url.includes('ultimate-guitar.com')) {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ error: 'Invalid URL format' }),
+        body: JSON.stringify({ error: 'Invalid Ultimate Guitar URL' }),
       };
     }
 
-    // Get the echoHEIST script path
-    const echoHeistPath = join(__dirname, '../../echoHEIST.sh');
+    console.log('🚀 Starting EchoHEIST download for:', url);
 
-    // Execute echoHEIST script
-    const result = await new Promise((resolve, reject) => {
-      const child = spawn('bash', [echoHeistPath, url], {
-        cwd: join(__dirname, '../..'),
-        stdio: ['pipe', 'pipe', 'pipe'],
-      });
-
-      let stdout = '';
-      let stderr = '';
-
-      child.stdout.on('data', (data) => {
-        stdout += data.toString();
-      });
-
-      child.stderr.on('data', (data) => {
-        stderr += data.toString();
-      });
-
-      child.on('close', (code) => {
-        if (code === 0) {
-          resolve({ stdout, stderr });
-        } else {
-          reject(new Error(`echoHEIST failed with code ${code}: ${stderr}`));
-        }
-      });
-
-      child.on('error', (error) => {
-        reject(new Error(`Failed to execute echoHEIST: ${error.message}`));
-      });
+    // Launch Puppeteer browser
+    const browser = await puppeteer.launch({
+      headless: 'new',
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--disable-gpu',
+      ],
     });
 
-    // Parse the output to extract file information
-    const output = result.stdout;
-    const lines = output.split('\n');
+    const page = await browser.newPage();
 
-    // Look for download success indicators
-    const downloadLine = lines.find(
-      (line) =>
-        line.includes('Downloaded:') || line.includes('File saved:') || line.includes('Success:')
+    // Set user agent
+    await page.setUserAgent(
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     );
 
-    if (!downloadLine) {
+    // Enable network request interception
+    await page.setRequestInterception(true);
+
+    let downloadUrl = null;
+    let downloadHeaders = null;
+
+    page.on('request', (req) => {
+      const requestUrl = req.url();
+
+      // Match the desired download request
+      if (requestUrl.includes('/download/public/')) {
+        console.log('📥 Captured download request:', requestUrl);
+        downloadUrl = requestUrl;
+        downloadHeaders = req.headers();
+        req.abort(); // Abort the original request
+      } else {
+        req.continue();
+      }
+    });
+
+    // Navigate to the provided URL
+    console.log('🌐 Navigating to:', url);
+    await page.goto(url, {
+      waitUntil: 'networkidle2',
+      timeout: 60000,
+    });
+
+    // Wait for dynamic requests
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+
+    await browser.close();
+
+    if (!downloadUrl) {
       return {
-        statusCode: 500,
+        statusCode: 404,
         headers,
         body: JSON.stringify({
-          error: 'Download failed - no file was downloaded',
-          debug: output,
+          error: 'Download link not found. This might not be a Guitar Pro tab.',
         }),
       };
     }
 
-    // Extract filename from the output
-    const filenameMatch = downloadLine.match(/(?:Downloaded:|File saved:|Success:)\s*(.+)/);
-    const filename = filenameMatch ? filenameMatch[1].trim() : 'download';
+    // Download the file using the captured URL and headers
+    console.log('📥 Downloading file from:', downloadUrl);
 
-    // For now, we'll return success with the filename
-    // In a real implementation, you'd need to handle file serving
+    const response = await fetch(downloadUrl, {
+      headers: downloadHeaders,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Download failed: ${response.status} ${response.statusText}`);
+    }
+
+    const fileBuffer = await response.arrayBuffer();
+    const base64File = Buffer.from(fileBuffer).toString('base64');
+
+    console.log('✅ File downloaded successfully, size:', fileBuffer.byteLength, 'bytes');
+
     return {
       statusCode: 200,
-      headers,
-      body: JSON.stringify({
-        success: true,
-        originalUrl: url,
-        filename: filename,
-        fileSize: 'Unknown', // Would need to get actual file size
-        duration: 'Unknown', // Would need to extract from file
-        message: 'File downloaded successfully',
-        downloadUrl: null, // Would need to implement file serving
-      }),
+      headers: {
+        ...headers,
+        'Content-Type': 'application/octet-stream',
+        'Content-Disposition': 'attachment; filename="tab.gpx"',
+      },
+      body: base64File,
+      isBase64Encoded: true,
     };
   } catch (error) {
-    console.error('echoHEIST API error:', error);
-
+    console.error('❌ EchoHEIST error:', error);
     return {
       statusCode: 500,
       headers,
       body: JSON.stringify({
-        error: error.message || 'Internal server error',
+        error: 'Download failed',
+        details: error.message,
+        debug: {
+          url: event.body ? JSON.parse(event.body).url : 'unknown',
+          timestamp: new Date().toISOString(),
+        },
       }),
     };
   }
