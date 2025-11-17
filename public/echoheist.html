@@ -35,6 +35,10 @@
 
         .header {
             margin-bottom: 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
         }
 
         .ascii-art {
@@ -48,19 +52,16 @@
             overflow-x: auto; /* allow horizontal scroll if needed */
             max-width: 100%;
             display: block;
-        }
-
-        .tip {
-            color: #9cdcfe;
-            font-size: 1rem;
-            margin: 0;
-            font-style: italic;
+            padding-bottom: 0.5rem;
         }
 
         .tabs {
             display: flex;
             margin-bottom: 2rem;
             border-bottom: 1px solid #3e3e42;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            justify-content: center;
         }
 
         .tab-btn {
@@ -72,6 +73,9 @@
             border-bottom: 2px solid transparent;
             font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
             transition: all 0.2s ease;
+            flex: 1;
+            min-width: 140px;
+            text-align: center;
         }
 
         .tab-btn.active {
@@ -93,6 +97,9 @@
 
         .form-group {
             margin-bottom: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
         }
 
         .url-input {
@@ -128,6 +135,12 @@
             font-weight: 600;
             cursor: pointer;
             transition: background-color 0.2s ease, border-color 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            width: 100%;
+            min-height: 3.2rem;
         }
 
         .submit-btn:hover {
@@ -359,7 +372,7 @@
 
         @media (max-width: 768px) {
             .container {
-                padding: 2rem 1.5rem;
+                padding: 2rem 1.2rem;
             }
             
             .header h1 {
@@ -374,12 +387,25 @@
 
             .link-grid {
                 flex-direction: column;
-                align-items: center;
+                align-items: stretch;
             }
 
             .footer-link {
                 width: 100%;
-                max-width: 300px;
+                text-align: center;
+            }
+
+            .tabs {
+                gap: 0.25rem;
+            }
+
+            .tab-btn {
+                flex: 1 1 45%;
+            }
+
+            .url-input,
+            .submit-btn {
+                width: 100%;
             }
         }
 
@@ -389,19 +415,26 @@
                 white-space: pre-wrap;
                 word-break: break-word;
             }
+
+            .tab-btn {
+                flex: 1 1 100%;
+            }
+
+            .container {
+                padding: 1.5rem 1rem;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <pre class="ascii-art">  ███████╗ ██████╗██╗  ██╗ ██████╗ ██╗  ██╗██╗███████╗████████╗
+            <pre class="ascii-art" role="img" aria-label="EchoHEIST ASCII banner">  ███████╗ ██████╗██╗  ██╗ ██████╗ ██╗  ██╗██╗███████╗████████╗
   ██╔════╝██╔════╝██║  ██║██╔═══██╗██║  ██║██║██╔════╝╚══██╔══╝
   █████╗  ██║     ███████║██║   ██║███████║██║███████╗   ██║   
   ██╔══╝  ██║     ██╔══██║██║   ██║██╔══██║██║╚════██║   ██║   
-  ███████╗╚██████╗██║  ██║╚██████╔╝██║  ██║██║███████║   ██║   
-  ╚══════╝ ╚═════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝╚═╝╚══════╝   ╚═╝</pre>
-            <p class="tip">💡 Tip: Enter a link for a file from ultimate-guitar.com to download</p>
+    ███████╗╚██████╗██║  ██║╚██████╔╝██║  ██║██║███████║   ██║   
+    ╚══════╝ ╚═════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝╚═╝╚══════╝   ╚═╝</pre>
         </div>
 
         <div class="tabs">
@@ -473,278 +506,454 @@
         <p>A DTRHnet Project &lt; <a href="mailto:admin@dtrh.net">admin [AT] dtrh [DOT] net</a>&gt;</p>
     </footer>
 
-    <script>
-        // DOM Elements
-        const downloadForm = document.getElementById('downloadForm');
-        const searchForm = document.getElementById('searchForm');
-        const urlInput = document.getElementById('urlInput');
-        const searchInput = document.getElementById('searchInput');
-        const submitBtn = document.getElementById('submitBtn');
-        const searchBtn = document.getElementById('searchBtn');
-        const loading = document.getElementById('loading');
-        const result = document.getElementById('result');
-        const resultTitle = document.getElementById('resultTitle');
-        const resultContent = document.getElementById('resultContent');
-        const tabBtns = document.querySelectorAll('.tab-btn');
-        const tabContents = document.querySelectorAll('.tab-content');
-        const debugContent = document.getElementById('debugContent');
-
-        // Utility Functions
-        function addDebugLog(message, type = 'info') {
-            const timestamp = new Date().toLocaleTimeString();
-            const logLine = document.createElement('div');
-            logLine.className = `debug-line ${type}`;
-            logLine.textContent = `[${timestamp}] ${message}`;
-            debugContent.appendChild(logLine);
-            debugContent.scrollTop = debugContent.scrollHeight;
-        }
-
-        function showLoading() {
-            loading.classList.add('active');
-            result.classList.remove('active');
-        }
-
-        function hideLoading() {
-            loading.classList.remove('active');
-        }
-
-        function showResult(title, content, isSuccess = false) {
-            resultTitle.textContent = title;
-            resultContent.innerHTML = content;
-            result.className = `result ${isSuccess ? 'success' : ''}`;
-            result.classList.add('active');
-            hideLoading();
-        }
-
-        function clearDebug() {
-            debugContent.innerHTML = '<div class="debug-line info">Debug information cleared. Ready for new operation.</div>';
-        }
-
-        // Tab switching
-        tabBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const tab = btn.dataset.tab;
-                
-                // Update active tab button
-                tabBtns.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                
-                // Update active tab content
-                tabContents.forEach(content => content.classList.remove('active'));
-                document.getElementById(tab === 'download' ? 'downloadForm' : 'searchForm').classList.add('active');
-            });
-        });
-
-        // Download form handler
-        downloadForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const url = urlInput.value.trim();
-            if (!url) return;
-            
-            clearDebug();
-            addDebugLog('Starting download process...', 'info');
-            addDebugLog(`Target URL: ${url}`, 'info');
-            addDebugLog('Sending request to server...', 'info');
-            
-            await downloadFromUrl(url);
-        });
-
-        // Search form handler
-        searchForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const query = searchInput.value.trim();
-            if (!query) return;
-            
-            clearDebug();
-            addDebugLog(`Starting search for: "${query}"`, 'info');
-            await performSearch(query);
-        });
-
-        // Download function
-        async function downloadFromUrl(url) {
-            showLoading();
-            const endpoints = [
+      <script>
+            const API_ENDPOINTS = [
                 '/.netlify/functions/echoheist',
                 '/.netlify/functions/grab',
                 '/api/echoheist',
                 '/api/grab'
             ];
 
-            let lastError = null;
-            for (const ep of endpoints) {
-                try {
-                    addDebugLog(`Trying endpoint: ${ep}`, 'info');
-                    const response = await fetch(ep, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ url })
+            // DOM Elements
+            const downloadForm = document.getElementById('downloadForm');
+            const searchForm = document.getElementById('searchForm');
+            const urlInput = document.getElementById('urlInput');
+            const searchInput = document.getElementById('searchInput');
+            const submitBtn = document.getElementById('submitBtn');
+            const loading = document.getElementById('loading');
+            const result = document.getElementById('result');
+            const resultTitle = document.getElementById('resultTitle');
+            const resultContent = document.getElementById('resultContent');
+            const tabBtns = document.querySelectorAll('.tab-btn');
+            const tabContents = document.querySelectorAll('.tab-content');
+            const debugContent = document.getElementById('debugContent');
+            const defaultSubmitLabel = submitBtn ? submitBtn.textContent.trim() || 'Download' : 'Download';
+            const activeObjectUrls = new Set();
+
+            // Utility Functions
+            function addDebugLog(message, type = 'info') {
+                const timestamp = new Date().toLocaleTimeString();
+                const logLine = document.createElement('div');
+                logLine.className = `debug-line ${type}`;
+                logLine.textContent = `[${timestamp}] ${message}`;
+                debugContent.appendChild(logLine);
+                debugContent.scrollTop = debugContent.scrollHeight;
+            }
+
+            function logServerDebug(payload, scope = 'server') {
+                if (!payload) return;
+                const typeForKey = (key) => (/error|fail/i.test(key) ? 'error' : /warn/i.test(key) ? 'warning' : 'info');
+
+                if (typeof payload === 'string') {
+                    payload.split('\n').forEach((line) => {
+                        if (line.trim()) addDebugLog(`[${scope}] ${line.trim()}`);
                     });
+                    return;
+                }
 
-                    const contentType = response.headers.get('Content-Type') || '';
-                    addDebugLog(`Server responded with status ${response.status} (${contentType})`, 'info');
+                if (Array.isArray(payload)) {
+                    payload.forEach((entry) => logServerDebug(entry, scope));
+                    return;
+                }
 
-                    // Raw file stream
-                    if (response.ok && contentType.includes('application/octet-stream')) {
-                        const disposition = response.headers.get('Content-Disposition') || '';
-                        const match = disposition.match(/filename="?([^";]+)"?/i);
-                        const filename = match ? match[1] : `download_${Date.now()}.gpx`;
-                        const blob = await response.blob();
-                        const sizeKb = (blob.size / 1024).toFixed(2);
-                        const objectUrl = URL.createObjectURL(blob);
-                        addDebugLog(`Downloaded ${filename} (${sizeKb} KB)`, 'success');
-                        const content = `
-                            <div style="display:flex;flex-direction:column;gap:12px;">
-                                <div><strong>URL:</strong> ${escapeHtml(url)}</div>
-                                <div><strong>Filename:</strong> ${escapeHtml(filename)}</div>
-                                <div><strong>Size:</strong> ${sizeKb} KB</div>
-                                <div><strong>Duration:</strong> Unknown</div>
-                                <div style="margin-top:8px;">
-                                    <a href="${objectUrl}" download="${escapeAttr(filename)}" class="download-btn">
-                                        <span>⬇️</span> Download File
-                                    </a>
-                                </div>
-                                <div style="margin-top:8px;font-size:0.8rem;color:#5c6370;">
-                                    <span>▶️</span> <span>🔍</span> Verbose Output
-                                </div>
-                            </div>`;
-                        showResult('Download Successful!', content, true);
-                        return;
+                Object.entries(payload).forEach(([key, value]) => {
+                    if (value === undefined || value === null || value === '') return;
+                    if (typeof value === 'string') {
+                        value.split('\n').forEach((line) => {
+                            if (line.trim()) addDebugLog(`[${key}] ${line.trim()}`, typeForKey(key));
+                        });
+                    } else if (Array.isArray(value)) {
+                        value.forEach((item) => logServerDebug(item, key));
+                    } else if (typeof value === 'object') {
+                        addDebugLog(`[${key}] ${JSON.stringify(value)}`, typeForKey(key));
+                    } else {
+                        addDebugLog(`[${key}] ${value}`, typeForKey(key));
                     }
+                });
+            }
 
-                    // JSON flows
-                    let data;
-                    try { data = await response.json(); } catch (_) { data = null; }
-                    if (response.ok && data && data.base64) {
-                        const binary = atob(data.base64);
-                        const bytes = new Uint8Array(binary.length);
-                        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-                        const blob = new Blob([bytes.buffer], { type: 'application/octet-stream' });
-                        const filename = data.filename || `download_${Date.now()}.gpx`;
-                        const objectUrl = URL.createObjectURL(blob);
-                        addDebugLog(`Downloaded ${filename} (${(blob.size/1024).toFixed(2)} KB)`, 'success');
-                        const content = `
-                            <div style="display:flex;flex-direction:column;gap:12px;">
-                                <div><strong>URL:</strong> ${escapeHtml(url)}</div>
-                                <div><strong>Filename:</strong> ${escapeHtml(filename)}</div>
-                                <div><strong>Size:</strong> ${(blob.size/1024).toFixed(2)} KB</div>
-                                <div><strong>Duration:</strong> Unknown</div>
-                                <div style="margin-top:8px;">
-                                    <a href="${objectUrl}" download="${escapeAttr(filename)}" class="download-btn">
-                                        <span>⬇️</span> Download File
-                                    </a>
-                                </div>
-                                <div style="margin-top:8px;font-size:0.8rem;color:#5c6370;">
-                                    <span>▶️</span> <span>🔍</span> Verbose Output
-                                </div>
-                            </div>`;
-                        showResult('Download Successful!', content, true);
-                        return;
-                    } else if (response.ok && data && data.downloadUrl) {
-                        // Handle local server JSON shape: provide a direct download link
-                        const filename = data.filename || `download_${Date.now()}.gpx`;
-                        addDebugLog(`Server prepared file at ${data.downloadUrl}`, 'success');
-                        const content = `
-                            <div style="display:flex;flex-direction:column;gap:12px;">
-                                <div><strong>URL:</strong> ${escapeHtml(url)}</div>
-                                <div><strong>Filename:</strong> ${escapeHtml(filename)}</div>
-                                <div style="margin-top:8px;">
-                                    <a href="${data.downloadUrl}" class="download-btn">
-                                        <span>⬇️</span> Download File
-                                    </a>
-                                </div>
-                                <div style="margin-top:8px;font-size:0.8rem;color:#5c6370;">
-                                    <span>▶️</span> <span>🔍</span> Verbose Output
-                                </div>
-                            </div>`;
-                        showResult('Ready to Download', content, true);
-                        return;
-                    }
+            function showLoading() {
+                loading.classList.add('active');
+                result.classList.remove('active');
+            }
 
-                    const message = (data && (data.error || data.message)) || `HTTP ${response.status}`;
-                    addDebugLog(`Endpoint ${ep} failed: ${message}`, 'warning');
-                    lastError = new Error(message);
-                } catch (err) {
-                    lastError = err;
-                    addDebugLog(`Endpoint ${ep} error: ${err.message}`, 'warning');
+            function hideLoading() {
+                loading.classList.remove('active');
+            }
+
+            function showResult(title, content, isSuccess = false) {
+                resultTitle.textContent = title;
+                resultContent.innerHTML = content;
+                result.className = `result ${isSuccess ? 'success' : ''}`;
+                result.classList.add('active');
+                hideLoading();
+            }
+
+            function clearDebug() {
+                debugContent.innerHTML = '<div class="debug-line info">Debug information cleared. Ready for new operation.</div>';
+            }
+
+            function setDownloadState(isBusy, label) {
+                if (!submitBtn) return;
+                submitBtn.disabled = isBusy;
+                submitBtn.textContent = label || (isBusy ? 'Preparing…' : defaultSubmitLabel);
+            }
+
+            function trackObjectUrl(url) {
+                if (url) {
+                    activeObjectUrls.add(url);
                 }
             }
 
-            const msg = lastError ? lastError.message : 'Unknown error';
-            addDebugLog(`Download failed: ${msg}`, 'error');
-            showResult('Download Failed', `<div style=\"color: #f44336;\">${escapeHtml(msg)}</div>`);
-        }
+            function releaseObjectUrls() {
+                activeObjectUrls.forEach((url) => URL.revokeObjectURL(url));
+                activeObjectUrls.clear();
+            }
 
-        // Search function
-        async function performSearch(query) {
-            showLoading();
-            try {
-                const endpoints = [
-                    `/.netlify/functions/search?query=${encodeURIComponent(query)}&limit=20`,
-                    `/api/search?query=${encodeURIComponent(query)}&limit=20`
-                ];
+            function triggerAutoDownload(href, filename) {
+                try {
+                    const anchor = document.createElement('a');
+                    anchor.href = href;
+                    anchor.download = filename;
+                    anchor.style.display = 'none';
+                    document.body.appendChild(anchor);
+                    anchor.click();
+                    document.body.removeChild(anchor);
+                } catch (error) {
+                    addDebugLog(`Auto-download skipped: ${error.message}`, 'warning');
+                }
+            }
 
-                let payload = null;
-                for (const ep of endpoints) {
-                    addDebugLog(`Trying search endpoint: ${ep}`, 'info');
+            function sanitizeFilename(name) {
+                return (name || `download_${Date.now()}.gpx`).replace(/[^a-zA-Z0-9._-]/g, '_');
+            }
+
+            function deriveFilenameFromUrl(url) {
+                try {
+                    const parsed = new URL(url);
+                    const candidate = parsed.pathname.split('/').filter(Boolean).pop() || 'download';
+                    const cleaned = candidate.split(/[?#]/)[0];
+                    if (/\.(?:gp\d|gpx)$/i.test(cleaned)) {
+                        return sanitizeFilename(cleaned);
+                    }
+                    return sanitizeFilename(`${cleaned || 'download'}.gpx`);
+                } catch (_) {
+                    return sanitizeFilename('download.gpx');
+                }
+            }
+
+            function formatFileSize(bytes) {
+                if (!bytes && bytes !== 0) return 'Unknown';
+                if (bytes < 1024) return `${bytes} B`;
+                const kb = bytes / 1024;
+                if (kb < 1024) return `${kb.toFixed(2)} KB`;
+                return `${(kb / 1024).toFixed(2)} MB`;
+            }
+
+            function buildResultCard(meta) {
+                const downloadHref = meta.objectUrl || meta.remoteUrl;
+                const label = meta.objectUrl ? 'Download File' : 'Open File';
+                const extraAttrs = meta.objectUrl
+                    ? `download="${escapeAttr(meta.filename)}"`
+                    : 'target="_blank" rel="noopener"';
+                const fallback = meta.remoteUrl && meta.objectUrl
+                    ? `<div style="margin-top:8px;font-size:0.85rem;color:#9cdcfe;">Having trouble? <a href="${escapeAttr(meta.remoteUrl)}" target="_blank" rel="noopener" style="color:#569cd6;">Open server copy</a></div>`
+                    : '';
+                const sizeRow = meta.sizeBytes
+                    ? `<div><strong>Size:</strong> ${formatFileSize(meta.sizeBytes)}</div>`
+                    : '';
+
+                return `
+                    <div style="display:flex;flex-direction:column;gap:12px;">
+                        <div><strong>URL:</strong> ${escapeHtml(meta.targetUrl || '')}</div>
+                        <div><strong>Filename:</strong> ${escapeHtml(meta.filename)}</div>
+                        ${sizeRow}
+                        <div style="margin-top:8px;">
+                            <a href="${escapeAttr(downloadHref)}" ${extraAttrs} class="download-btn">
+                                <span>⬇️</span> ${label}
+                            </a>
+                        </div>
+                        ${fallback}
+                    </div>`;
+            }
+
+            async function parseResponsePayload(response) {
+                const clone = response.clone();
+                try {
+                    const data = await clone.json();
+                    return { data };
+                } catch (_) {
                     try {
-                        const res = await fetch(ep);
-                        const data = await res.json();
-                        if (res.ok && data && data.results) { payload = data; break; }
-                    } catch (_) { /* try next */ }
+                        const rawText = await response.text();
+                        return { rawText };
+                    } catch (_) {
+                        return {};
+                    }
                 }
-
-                if (payload && payload.results) {
-                    addDebugLog(`Found ${payload.results.length} results`, 'success');
-                    showSearchResults(payload.results);
-                } else {
-                    addDebugLog('Search failed: No results found', 'warning');
-                    showResult('Search Failed', `<div style="color: #ff9800;">No results found</div>`);
-                }
-            } catch (error) {
-                addDebugLog(`Search error: ${error.message}`, 'error');
-                showResult('Search Error', `<div style=\"color: #f44336;\">Failed to search: ${escapeHtml(error.message)}</div>`);
-            }
-        }
-
-        function showSearchResults(results) {
-            if (results.length === 0) {
-                showResult('No Results', '<div style="color: #ff9800;">No results found. Try a different search term.</div>');
-                return;
             }
 
-            const resultsHtml = results.map((item, index) => `
-                <div style="padding: 1rem; margin-bottom: 0.5rem; background: #1e1e1e; border: 1px solid #3e3e42; border-radius: 4px; cursor: pointer; transition: background-color 0.2s ease;" onclick="downloadFromUrl('${escapeAttr(item.url)}')">
-                    <h4 style="color: #569cd6; margin: 0 0 0.5rem 0; font-size: 1rem;">${escapeHtml(item.title)}</h4>
-                    <p style="color: #9cdcfe; margin: 0 0 0.5rem 0;">${escapeHtml(item.artist)}</p>
-                    <div style="display: flex; gap: 1rem; font-size: 0.8rem; color: #5c6370;">
-                        <span style="color: #4caf50;">${escapeHtml(item.type)}</span>
-                        <span style="color: #ff9800;">⭐ ${item.rating || 'N/A'}</span>
-                        <span>👁️ ${item.views || 'N/A'} views</span>
+            async function handleBinaryResponse(response, targetUrl) {
+                const disposition = response.headers.get('Content-Disposition') || '';
+                const match = disposition.match(/filename="?([^";]+)"?/i);
+                const filename = sanitizeFilename(match ? match[1] : deriveFilenameFromUrl(targetUrl));
+                const blob = await response.blob();
+                const objectUrl = URL.createObjectURL(blob);
+                trackObjectUrl(objectUrl);
+                return { targetUrl, filename, sizeBytes: blob.size, objectUrl };
+            }
+
+            function handleBase64Payload(base64, filename, targetUrl) {
+                const binary = atob(base64);
+                const bytes = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++) {
+                    bytes[i] = binary.charCodeAt(i);
+                }
+                const blob = new Blob([bytes.buffer], { type: 'application/octet-stream' });
+                const objectUrl = URL.createObjectURL(blob);
+                trackObjectUrl(objectUrl);
+                return { targetUrl, filename: sanitizeFilename(filename), sizeBytes: blob.size, objectUrl };
+            }
+
+            async function handlePreparedDownload(downloadUrl, filename, targetUrl) {
+                const safeName = sanitizeFilename(filename);
+                const absoluteUrl = downloadUrl.startsWith('http')
+                    ? downloadUrl
+                    : `${window.location.origin}${downloadUrl.startsWith('/') ? '' : '/'}${downloadUrl}`;
+                const sameOrigin = absoluteUrl.startsWith(window.location.origin);
+
+                if (!sameOrigin) {
+                    return { targetUrl, filename: safeName, remoteUrl: downloadUrl };
+                }
+
+                try {
+                    const response = await fetch(absoluteUrl);
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    const blob = await response.blob();
+                    const objectUrl = URL.createObjectURL(blob);
+                    trackObjectUrl(objectUrl);
+                    return {
+                        targetUrl,
+                        filename: safeName,
+                        sizeBytes: blob.size,
+                        objectUrl,
+                        remoteUrl: absoluteUrl,
+                    };
+                } catch (error) {
+                    addDebugLog(`Auto-fetch for ${downloadUrl} failed: ${error.message}`, 'warning');
+                    return { targetUrl, filename: safeName, remoteUrl: absoluteUrl };
+                }
+            }
+
+            function presentDownload(meta) {
+                const content = buildResultCard(meta);
+                showResult('Download Ready', content, true);
+                if (meta.objectUrl) {
+                    addDebugLog(`Auto-downloading ${meta.filename}`, 'info');
+                    triggerAutoDownload(meta.objectUrl, meta.filename);
+                } else if (meta.remoteUrl) {
+                    addDebugLog(`File available at ${meta.remoteUrl}`, 'info');
+                }
+            }
+
+            // Tab switching
+            tabBtns.forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    const tab = btn.dataset.tab;
+                    tabBtns.forEach((b) => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    tabContents.forEach((content) => content.classList.remove('active'));
+                    document.getElementById(tab === 'download' ? 'downloadForm' : 'searchForm').classList.add('active');
+                });
+            });
+
+            // Download form handler
+            downloadForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const url = urlInput.value.trim();
+                if (!url) return;
+                clearDebug();
+                addDebugLog('Starting download process...', 'info');
+                addDebugLog(`Target URL: ${url}`, 'info');
+                addDebugLog('Sending request to server...', 'info');
+                await downloadFromUrl(url);
+            });
+
+            // Search form handler
+            searchForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const query = searchInput.value.trim();
+                if (!query) return;
+                clearDebug();
+                addDebugLog(`Starting search for: "${query}"`, 'info');
+                await performSearch(query);
+            });
+
+            async function downloadFromUrl(url) {
+                const targetUrl = url.trim();
+                if (!targetUrl) {
+                    addDebugLog('No URL provided for download', 'warning');
+                    return false;
+                }
+
+                releaseObjectUrls();
+                showLoading();
+                setDownloadState(true, 'Preparing…');
+                let lastError = null;
+
+                try {
+                    for (const endpoint of API_ENDPOINTS) {
+                        try {
+                            addDebugLog(`Trying endpoint: ${endpoint}`, 'info');
+                            const response = await fetch(endpoint, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ url: targetUrl }),
+                            });
+
+                            const contentType = (response.headers.get('Content-Type') || '').toLowerCase();
+                            addDebugLog(
+                                `Endpoint responded with status ${response.status} (${contentType || 'unknown'})`,
+                                response.ok ? 'info' : 'warning'
+                            );
+
+                            if (response.ok && contentType.includes('application/octet-stream') && !contentType.includes('json')) {
+                                const meta = await handleBinaryResponse(response, targetUrl);
+                                presentDownload(meta);
+                                addDebugLog(`Binary payload received from ${endpoint}`, 'success');
+                                return true;
+                            }
+
+                            const payload = await parseResponsePayload(response);
+                            if (payload?.data?.debug) {
+                                logServerDebug(payload.data.debug);
+                            }
+
+                            if (response.ok && payload.data) {
+                                if (payload.data.base64) {
+                                    const meta = handleBase64Payload(
+                                        payload.data.base64,
+                                        payload.data.filename || deriveFilenameFromUrl(targetUrl),
+                                        targetUrl
+                                    );
+                                    presentDownload(meta);
+                                    addDebugLog(`Converted base64 payload from ${endpoint}`, 'success');
+                                    return true;
+                                }
+
+                                if (payload.data.downloadUrl) {
+                                    const meta = await handlePreparedDownload(
+                                        payload.data.downloadUrl,
+                                        payload.data.filename || deriveFilenameFromUrl(targetUrl),
+                                        targetUrl
+                                    );
+                                    presentDownload(meta);
+                                    addDebugLog(`Server prepared file at ${payload.data.downloadUrl}`, 'success');
+                                    return true;
+                                }
+                            }
+
+                            const message =
+                                (payload.data && (payload.data.error || payload.data.message)) ||
+                                payload.rawText ||
+                                `HTTP ${response.status}`;
+                            throw new Error(message);
+                        } catch (err) {
+                            lastError = err;
+                            addDebugLog(`Endpoint ${endpoint} error: ${err.message}`, 'warning');
+                        }
+                    }
+
+                    const msg = lastError ? lastError.message : 'Unknown error';
+                    addDebugLog(`Download failed: ${msg}`, 'error');
+                    showResult('Download Failed', `<div style=\"color: #f44336;\">${escapeHtml(msg)}</div>`);
+                    return false;
+                } finally {
+                    hideLoading();
+                    setDownloadState(false);
+                }
+            }
+
+            // Search function
+            async function performSearch(query) {
+                showLoading();
+                try {
+                    const endpoints = [
+                        `/.netlify/functions/search?query=${encodeURIComponent(query)}&limit=20`,
+                        `/api/search?query=${encodeURIComponent(query)}&limit=20`
+                    ];
+
+                    let payload = null;
+                    for (const ep of endpoints) {
+                        addDebugLog(`Trying search endpoint: ${ep}`, 'info');
+                        try {
+                            const res = await fetch(ep);
+                            const data = await res.json();
+                            if (res.ok && data && data.results) {
+                                payload = data;
+                                break;
+                            }
+                        } catch (error) {
+                            addDebugLog(`Search endpoint error: ${error.message}`, 'warning');
+                        }
+                    }
+
+                    if (payload && payload.results) {
+                        addDebugLog(`Found ${payload.results.length} results`, 'success');
+                        showSearchResults(payload.results);
+                    } else {
+                        addDebugLog('Search failed: No results found', 'warning');
+                        showResult('Search Failed', `<div style=\"color: #ff9800;\">No results found</div>`);
+                    }
+                } catch (error) {
+                    addDebugLog(`Search error: ${error.message}`, 'error');
+                    showResult('Search Error', `<div style=\"color: #f44336;\">Failed to search: ${escapeHtml(error.message)}</div>`);
+                } finally {
+                    hideLoading();
+                }
+            }
+
+            function showSearchResults(results) {
+                if (results.length === 0) {
+                    showResult('No Results', '<div style="color: #ff9800;">No results found. Try a different search term.</div>');
+                    return;
+                }
+
+                const resultsHtml = results.map((item) => `
+                    <div style="padding: 1rem; margin-bottom: 0.5rem; background: #1e1e1e; border: 1px solid #3e3e42; border-radius: 4px; cursor: pointer; transition: background-color 0.2s ease;" onclick="downloadFromUrl('${escapeAttr(item.url)}')">
+                        <h4 style="color: #569cd6; margin: 0 0 0.5rem 0; font-size: 1rem;">${escapeHtml(item.title)}</h4>
+                        <p style="color: #9cdcfe; margin: 0 0 0.5rem 0;">${escapeHtml(item.artist)}</p>
+                        <div style="display: flex; gap: 1rem; font-size: 0.8rem; color: #5c6370;">
+                            <span style="color: #4caf50;">${escapeHtml(item.type)}</span>
+                            <span style="color: #ff9800;">⭐ ${item.rating || 'N/A'}</span>
+                            <span>👁️ ${item.views || 'N/A'} views</span>
+                        </div>
                     </div>
-                </div>
-            `).join('');
+                `).join('');
 
-            showResult('Search Results', resultsHtml);
-        }
+                showResult('Search Results', resultsHtml);
+            }
 
-        // Initialize
-        addDebugLog('EchoHEIST Web Interface initialized', 'success');
-        addDebugLog('Ready to download Ultimate Guitar tabs', 'info');
+            // Initialize
+            addDebugLog('EchoHEIST Web Interface initialized', 'success');
+            addDebugLog('Ready to download Ultimate Guitar tabs', 'info');
 
-        // Helpers to safely inject text
-        function escapeHtml(text) {
-            return String(text)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#039;');
-        }
-        function escapeAttr(text) {
-            return escapeHtml(text).replace(/\s+/g, '_');
-        }
-    </script>
+            // Helpers to safely inject text
+            function escapeHtml(text) {
+                return String(text)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
+            }
+
+            function escapeAttr(text) {
+                return escapeHtml(text).replace(/\s+/g, '_');
+            }
+
+            window.downloadFromUrl = downloadFromUrl;
+            window.addEventListener('beforeunload', releaseObjectUrls);
+      </script>
+
 </body>
 </html>
