@@ -11,16 +11,44 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+const distDir = path.join(__dirname, '../../dist');
+const publicDir = path.join(__dirname, '../../public');
+const distHtml = path.join(distDir, 'echoheist.html');
+const publicHtml = path.join(publicDir, 'echoheist.html');
+const hasDistHtml = fs.existsSync(distHtml);
+const staticRoot = hasDistHtml ? distDir : publicDir;
+const entryHtml = hasDistHtml ? distHtml : publicHtml;
+
+const resolveScriptPath = (relativeScriptPath) => {
+  const distCandidate = path.join(distDir, relativeScriptPath);
+  if (fs.existsSync(distCandidate)) {
+    return distCandidate;
+  }
+
+  const srcCandidate = path.join(__dirname, '../../src', relativeScriptPath);
+  if (fs.existsSync(srcCandidate)) {
+    console.log(`ℹ️  Using source script for ${relativeScriptPath}: ${srcCandidate}`);
+    return srcCandidate;
+  }
+
+  console.warn(
+    `⚠️  Script ${relativeScriptPath} not found in dist or src. Falling back to dist path: ${distCandidate}`
+  );
+  return distCandidate;
+};
+
+console.log(`🗂️  Serving static assets from: ${staticRoot}`);
+
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Serve static files from the dist directory
-app.use(express.static(path.join(__dirname, '../../dist')));
+app.use(express.static(staticRoot));
 
 // Serve the echoheist.html file specifically
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '../../dist/echoheist.html'));
+  res.sendFile(entryHtml);
 });
 
 // API endpoint for echoHEIST
@@ -58,7 +86,7 @@ app.post('/api/echoheist', async (req, res) => {
       // Generate a unique filename
       const timestamp = Date.now();
       const filename = `download_${timestamp}.gpx`;
-      const grabScriptPath = path.resolve(__dirname, '../../dist/cmd/grab.js');
+      const grabScriptPath = resolveScriptPath('cmd/grab.js');
       const outputDir = path.join(__dirname, '../../downloads');
 
       // Ensure downloads directory exists
@@ -184,7 +212,7 @@ app.post('/api/search', async (req, res) => {
     console.log('🔍 Search query:', query);
 
     // Use the Node.js search module
-    const searchScriptPath = path.resolve(__dirname, '../../dist/cmd/search.js');
+      const searchScriptPath = resolveScriptPath('cmd/search.js');
 
     console.log('🚀 Starting Node.js search process...');
     console.log('🚀 Script path:', searchScriptPath);
@@ -332,7 +360,7 @@ app.use((req, res) => {
   }
 
   // Serve the main HTML file for all other routes
-  res.sendFile(path.join(__dirname, '../../public/echoheist.html'));
+  res.sendFile(entryHtml);
 });
 
 app.listen(PORT, () => {
